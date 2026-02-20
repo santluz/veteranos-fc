@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-globals */
+/* eslint-disable no-restricted-globals */
 import { useState } from "react";
 
 const INITIAL_PLAYERS = [

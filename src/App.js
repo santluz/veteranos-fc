@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const INITIAL_PLAYERS = [
   { id: 1, nome: "Carlos Silva", email: "carlos@email.com", telefone: "(11) 99999-1111", tipo: "mensalista", status: "ativo", pagamentos: [{ mes: "2026-01", valor: 80, pago: true }, { mes: "2026-02", valor: 80, pago: false }] },

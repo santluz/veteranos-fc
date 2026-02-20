@@ -90,7 +90,7 @@ export default function App() {
   };
 
   const removerJogador = (id) => {
-    if (confirm("Remover jogador?")) setJogadores(jogadores.filter(j => j.id !== id));
+    if (window.confirm("Remover jogador?")) setJogadores(jogadores.filter(j => j.id !== id));
   };
 
   const togglePagamento = (jogadorId) => {

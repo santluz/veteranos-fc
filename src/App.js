@@ -1,5 +1,4 @@
 /* eslint-disable no-restricted-globals */
-/* eslint-disable no-restricted-globals */
 import { useState } from "react";
 
 const VALOR_MENSALIDADE = 80;
@@ -21,6 +20,13 @@ export default function App() {
   const [loginModal, setLoginModal] = useState(true);
   const [senha, setSenha] = useState("");
   const [erroLogin, setErroLogin] = useState("");
+  const [senhaAdmin, setSenhaAdminState] = useState(() => loadStorage("vfc_senha", "admin123"));
+  const [modalSenha, setModalSenha] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [senhaNova, setSenhaNova] = useState("");
+  const [senhaConfirm, setSenhaConfirm] = useState("");
+  const [erroSenha, setErroSenha] = useState("");
+  const [okSenha, setOkSenha] = useState("");
   const [aba, setAba] = useState("dashboard");
   const [jogadores, setJogadoresState] = useState(() => loadStorage("vfc_jogadores", []));
   const [despesas, setDespesasState] = useState(() => loadStorage("vfc_despesas", []));
@@ -48,9 +54,20 @@ export default function App() {
 
   const entrar = (admin) => {
     if (admin) {
-      if (senha === "admin123") { setIsAdmin(true); setLoginModal(false); }
+      if (senha === senhaAdmin) { setIsAdmin(true); setLoginModal(false); }
       else { setErroLogin("Senha incorreta."); }
     } else { setIsAdmin(false); setLoginModal(false); }
+  };
+
+  const trocarSenha = () => {
+    if (senhaAtual !== senhaAdmin) { setErroSenha("Senha atual incorreta."); setOkSenha(""); return; }
+    if (senhaNova.length < 4) { setErroSenha("A nova senha deve ter pelo menos 4 caracteres."); setOkSenha(""); return; }
+    if (senhaNova !== senhaConfirm) { setErroSenha("As senhas não coincidem."); setOkSenha(""); return; }
+    setSenhaAdminState(senhaNova);
+    saveStorage("vfc_senha", senhaNova);
+    setErroSenha("");
+    setOkSenha("✅ Senha alterada com sucesso!");
+    setSenhaAtual(""); setSenhaNova(""); setSenhaConfirm("");
   };
 
   const receitaMes = jogadores.reduce((acc, j) => {
@@ -214,6 +231,25 @@ export default function App() {
         </div>
       )}
 
+      {modalSenha && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 20 }}>🔐 TROCAR SENHA</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input className="input" type="password" placeholder="Senha atual" value={senhaAtual} onChange={e => { setSenhaAtual(e.target.value); setErroSenha(""); setOkSenha(""); }} />
+              <input className="input" type="password" placeholder="Nova senha" value={senhaNova} onChange={e => { setSenhaNova(e.target.value); setErroSenha(""); setOkSenha(""); }} />
+              <input className="input" type="password" placeholder="Confirmar nova senha" value={senhaConfirm} onChange={e => { setSenhaConfirm(e.target.value); setErroSenha(""); setOkSenha(""); }} />
+              {erroSenha && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroSenha}</p>}
+              {okSenha && <p style={{ color: "#00d97e", fontSize: 13 }}>{okSenha}</p>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button className="btn btn-blue" style={{ flex: 1 }} onClick={trocarSenha}>Salvar Nova Senha</button>
+              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => { setModalSenha(false); setSenhaAtual(""); setSenhaNova(""); setSenhaConfirm(""); setErroSenha(""); setOkSenha(""); }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header style={{ background: "linear-gradient(135deg, #0d1525, #111827)", borderBottom: "1px solid #1e2e50", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 28 }}>⚽</span>
@@ -224,6 +260,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className={`tag ${isAdmin ? "tag-green" : "tag-yellow"}`}>{isAdmin ? "👑 ADMINISTRADOR" : "👁 VISITANTE"}</span>
+          {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Trocar Senha</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLoginModal(true); setSenha(""); setErroLogin(""); }}>Trocar Acesso</button>
         </div>
       </header>

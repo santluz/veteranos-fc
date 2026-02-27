@@ -1,8 +1,7 @@
 /* eslint-disable no-restricted-globals */
 import { useState } from "react";
 
-const VALOR_MENSALIDADE = 80;
-const VALOR_AVULSO = 30;
+// valores definidos via configValores no state
 
 function loadStorage(key, fallback) {
   try {
@@ -15,12 +14,35 @@ function saveStorage(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+
+function maskTelefone(v) {
+  v = v.replace(/\D/g, "").slice(0, 11);
+  if (v.length <= 2) return v.length ? `(${v}` : "";
+  if (v.length <= 6) return `(${v.slice(0,2)}) ${v.slice(2)}`;
+  if (v.length <= 10) return `(${v.slice(0,2)}) ${v.slice(2,6)}-${v.slice(6)}`;
+  return `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+}
+
+function maskDinheiro(v) {
+  v = v.replace(/\D/g, "");
+  if (!v) return "";
+  const num = parseInt(v, 10) / 100;
+  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseDinheiro(v) {
+  return parseFloat(v.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginModal, setLoginModal] = useState(true);
   const [senha, setSenha] = useState("");
   const [erroLogin, setErroLogin] = useState("");
   const [senhaAdmin, setSenhaAdminState] = useState(() => loadStorage("vfc_senha", "admin123"));
+  const [configValores, setConfigValoresState] = useState(() => loadStorage("vfc_config", { mensalista: "80,00", avulso: "30,00" }));
+  const [modalConfig, setModalConfig] = useState(false);
+  const [configEdit, setConfigEdit] = useState({ mensalista: "80,00", avulso: "30,00" });
   const [modalSenha, setModalSenha] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState("");
   const [senhaNova, setSenhaNova] = useState("");
@@ -44,6 +66,14 @@ export default function App() {
     const next = typeof val === "function" ? val(jogadores) : val;
     setJogadoresState(next);
     saveStorage("vfc_jogadores", next);
+  };
+
+  const valorMensalista = parseDinheiro(configValores.mensalista);
+  const valorAvulso = parseDinheiro(configValores.avulso);
+
+  const setConfigValores = (val) => {
+    setConfigValoresState(val);
+    saveStorage("vfc_config", val);
   };
 
   const setDespesas = (val) => {
@@ -125,7 +155,7 @@ export default function App() {
       const pags = [...j.pagamentos];
       const idx = pags.findIndex(p => p.mes === mesFiltro);
       if (idx >= 0) { pags[idx] = { ...pags[idx], pago: !pags[idx].pago }; }
-      else { pags.push({ mes: mesFiltro, valor: j.tipo === "mensalista" ? VALOR_MENSALIDADE : VALOR_AVULSO, pago: true }); }
+      else { pags.push({ mes: mesFiltro, valor: j.tipo === "mensalista" ? valorMensalista : valorAvulso, pago: true }); }
       return { ...j, pagamentos: pags };
     }));
   };
@@ -190,10 +220,10 @@ export default function App() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input className="input" placeholder="Nome completo" value={novoJogador.nome} onChange={e => setNovoJogador({ ...novoJogador, nome: e.target.value })} />
               <input className="input" placeholder="E-mail" value={novoJogador.email} onChange={e => setNovoJogador({ ...novoJogador, email: e.target.value })} />
-              <input className="input" placeholder="Telefone" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: e.target.value })} />
+              <input className="input" placeholder="(21) 98988-5422" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: maskTelefone(e.target.value) })} />
               <select className="input" value={novoJogador.tipo} onChange={e => setNovoJogador({ ...novoJogador, tipo: e.target.value })}>
-                <option value="mensalista">Mensalista (R$ {VALOR_MENSALIDADE})</option>
-                <option value="avulso">Avulso (R$ {VALOR_AVULSO})</option>
+                <option value="mensalista">Mensalista (R$ {configValores.mensalista})</option>
+                <option value="avulso">Avulso (R$ {configValores.avulso})</option>
               </select>
               <select className="input" value={novoJogador.status} onChange={e => setNovoJogador({ ...novoJogador, status: e.target.value })}>
                 <option value="ativo">Ativo</option>
@@ -231,6 +261,28 @@ export default function App() {
         </div>
       )}
 
+      {modalConfig && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 20 }}>⚙️ CONFIGURAR VALORES</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>MENSALIDADE (R$)</p>
+                <input className="input" placeholder="Ex: 80,00" value={configEdit.mensalista} onChange={e => setConfigEdit({ ...configEdit, mensalista: maskDinheiro(e.target.value) })} />
+              </div>
+              <div>
+                <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>VALOR AVULSO (R$)</p>
+                <input className="input" placeholder="Ex: 30,00" value={configEdit.avulso} onChange={e => setConfigEdit({ ...configEdit, avulso: maskDinheiro(e.target.value) })} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button className="btn btn-green" style={{ flex: 1 }} onClick={() => { setConfigValores(configEdit); setModalConfig(false); }}>Salvar</button>
+              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => setModalConfig(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modalSenha && (
         <div className="overlay">
           <div className="modal">
@@ -260,6 +312,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className={`tag ${isAdmin ? "tag-green" : "tag-yellow"}`}>{isAdmin ? "👑 ADMINISTRADOR" : "👁 VISITANTE"}</span>
+          {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Trocar Senha</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLoginModal(true); setSenha(""); setErroLogin(""); }}>Trocar Acesso</button>
         </div>
@@ -286,7 +339,7 @@ export default function App() {
               <div className="stat-card" style={{ borderLeftColor: "#00d97e" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>RECEITA DO MÊS</p>
                 <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 36, fontWeight: 900, color: "#00d97e" }}>R$ {receitaMes.toFixed(2)}</p>
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min((receitaMes / ((totalMensalistas * VALOR_MENSALIDADE + totalAvulsos * VALOR_AVULSO) || 1)) * 100, 100)}%`, background: "#00d97e" }} /></div>
+                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min((receitaMes / ((totalMensalistas * valorMensalista + totalAvulsos * valorAvulso) || 1)) * 100, 100)}%`, background: "#00d97e" }} /></div>
               </div>
               <div className="stat-card" style={{ borderLeftColor: "#ff4757" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>DESPESAS DO MÊS</p>
@@ -316,7 +369,7 @@ export default function App() {
                         <p style={{ fontSize: 12, color: "#64748b" }}>{j.telefone} · {j.email}</p>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontWeight: 700, color: "#ff4757" }}>R$ {VALOR_MENSALIDADE},00 pendente</span>
+                        <span style={{ fontWeight: 700, color: "#ff4757" }}>R$ {valorMensalista},00 pendente</span>
                         {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => togglePagamento(j.id)}>Marcar Pago</button>}
                       </div>
                     </div>

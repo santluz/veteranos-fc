@@ -41,6 +41,9 @@ export default function App() {
   const [erroLogin, setErroLogin] = useState("");
   const [senhaAdmin, setSenhaAdminState] = useState(() => loadStorage("vfc_senha", "admin123"));
   const [configValores, setConfigValoresState] = useState(() => loadStorage("vfc_config", { mensalista: "80,00", avulso: "30,00" }));
+  const [nomeGrupo, setNomeGrupoState] = useState(() => loadStorage("vfc_nome", "VETERANOS FC"));
+  const [modalNome, setModalNome] = useState(false);
+  const [nomeEdit, setNomeEdit] = useState("");
   const [modalConfig, setModalConfig] = useState(false);
   const [configEdit, setConfigEdit] = useState({ mensalista: "80,00", avulso: "30,00" });
   const [modalSenha, setModalSenha] = useState(false);
@@ -74,6 +77,11 @@ export default function App() {
   const setConfigValores = (val) => {
     setConfigValoresState(val);
     saveStorage("vfc_config", val);
+  };
+
+  const setNomeGrupo = (val) => {
+    setNomeGrupoState(val);
+    saveStorage("vfc_nome", val);
   };
 
   const setDespesas = (val) => {
@@ -200,7 +208,7 @@ export default function App() {
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
-            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>VETERANOS FC</h1>
+            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Gestão do Grupo</p>
             <div style={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12, fontWeight: 600 }}>ACESSO ADMINISTRADOR</p>
@@ -261,6 +269,20 @@ export default function App() {
         </div>
       )}
 
+      {modalNome && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>✏️ NOME DO GRUPO</h2>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Este nome aparece no cabeçalho e na tela de login.</p>
+            <input className="input" placeholder="Nome do grupo" value={nomeEdit} onChange={e => setNomeEdit(e.target.value.toUpperCase())} maxLength={30} />
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button className="btn btn-green" style={{ flex: 1 }} onClick={() => { if (nomeEdit.trim()) { setNomeGrupo(nomeEdit.trim()); setModalNome(false); } }}>Salvar</button>
+              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => setModalNome(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modalConfig && (
         <div className="overlay">
           <div className="modal">
@@ -306,12 +328,13 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 28 }}>⚽</span>
           <div>
-            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>VETERANOS FC</h1>
+            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
             <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>SISTEMA DE GESTÃO</p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className={`tag ${isAdmin ? "tag-green" : "tag-yellow"}`}>{isAdmin ? "👑 ADMINISTRADOR" : "👁 VISITANTE"}</span>
+          {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setNomeEdit(nomeGrupo); setModalNome(true); }}>✏️ Nome</button>}
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Trocar Senha</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLoginModal(true); setSenha(""); setErroLogin(""); }}>Trocar Acesso</button>

@@ -1,11 +1,20 @@
 /* eslint-disable no-restricted-globals */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
-function loadStorage(key, fallback) {
-  try { const val = localStorage.getItem(key); return val ? JSON.parse(val) : fallback; }
-  catch { return fallback; }
-}
-function saveStorage(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+const firebaseConfig = {
+  apiKey: "AIzaSyAPtdoXi5q5xf6KG0ltApdr6kHHbk4jJRQ",
+  authDomain: "veteranosfc-fd317.firebaseapp.com",
+  projectId: "veteranosfc-fd317",
+  storageBucket: "veteranosfc-fd317.firebasestorage.app",
+  messagingSenderId: "729812514430",
+  appId: "1:729812514430:web:7e4702516891cbeb4a4a2f",
+  measurementId: "G-7CCRKBG35N"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 
 function maskTelefone(v) {
   v = v.replace(/\D/g, "").slice(0, 11);
@@ -20,22 +29,31 @@ function maskDinheiro(v) {
   return (parseInt(v, 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function parseDinheiro(v) { return parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0; }
-
 function nomeMes(mesStr) {
   const [ano, mes] = mesStr.split("-");
   const nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   return `${nomes[parseInt(mes)-1]} ${ano}`;
 }
 
+const GRUPO_ID = "grupo_principal";
+
 export default function App() {
+  const [carregando, setCarregando] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginModal, setLoginModal] = useState(true);
   const [senha, setSenha] = useState("");
   const [erroLogin, setErroLogin] = useState("");
-  const [senhaAdmin, setSenhaAdminState] = useState(() => loadStorage("vfc_senha", "admin123"));
-  const [configValores, setConfigValoresState] = useState(() => loadStorage("vfc_config", { mensalista: "80,00", avulso: "30,00" }));
-  const [nomeGrupo, setNomeGrupoState] = useState(() => loadStorage("vfc_nome", "VETERANOS FC"));
-  const [metaMensal, setMetaMensalState] = useState(() => loadStorage("vfc_meta", ""));
+
+  // Dados do Firebase
+  const [senhaAdmin, setSenhaAdmin] = useState("admin123");
+  const [nomeGrupo, setNomeGrupoState] = useState("VETERANOS FC");
+  const [configValores, setConfigValoresState] = useState({ mensalista: "80,00", avulso: "30,00" });
+  const [metaMensal, setMetaMensalState] = useState("");
+  const [jogadores, setJogadoresState] = useState([]);
+  const [despesas, setDespesasState] = useState([]);
+  const [presencas, setPresencasState] = useState({});
+
+  // Modais
   const [modalNome, setModalNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [modalConfig, setModalConfig] = useState(false);
@@ -48,10 +66,6 @@ export default function App() {
   const [okSenha, setOkSenha] = useState("");
   const [modalMeta, setModalMeta] = useState(false);
   const [metaEdit, setMetaEdit] = useState("");
-  const [aba, setAba] = useState("dashboard");
-  const [jogadores, setJogadoresState] = useState(() => loadStorage("vfc_jogadores", []));
-  const [despesas, setDespesasState] = useState(() => loadStorage("vfc_despesas", []));
-  const [presencas, setPresencasState] = useState(() => loadStorage("vfc_presencas", {}));
   const [modalJogador, setModalJogador] = useState(false);
   const [modalDespesa, setModalDespesa] = useState(false);
   const [modalHistorico, setModalHistorico] = useState(null);
@@ -60,18 +74,56 @@ export default function App() {
   const [jogadorEdit, setJogadorEdit] = useState(null);
   const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
   const [novaDespesa, setNovaDespesa] = useState({ descricao: "", valor: "", data: "", categoria: "Infraestrutura" });
+  const [aba, setAba] = useState("dashboard");
   const [mesFiltro, setMesFiltro] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
   });
   const [dataPresenca, setDataPresenca] = useState(() => new Date().toISOString().split("T")[0]);
+  const [salvando, setSalvando] = useState(false);
 
-  const setJogadores = (val) => { const next = typeof val === "function" ? val(jogadores) : val; setJogadoresState(next); saveStorage("vfc_jogadores", next); };
-  const setDespesas = (val) => { const next = typeof val === "function" ? val(despesas) : val; setDespesasState(next); saveStorage("vfc_despesas", next); };
-  const setPresencas = (val) => { const next = typeof val === "function" ? val(presencas) : val; setPresencasState(next); saveStorage("vfc_presencas", next); };
-  const setConfigValores = (val) => { setConfigValoresState(val); saveStorage("vfc_config", val); };
-  const setNomeGrupo = (val) => { setNomeGrupoState(val); saveStorage("vfc_nome", val); };
-  const setMetaMensal = (val) => { setMetaMensalState(val); saveStorage("vfc_meta", val); };
+  // Carregar dados do Firebase em tempo real
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "grupos", GRUPO_ID), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.senhaAdmin) setSenhaAdmin(data.senhaAdmin);
+        if (data.nomeGrupo) setNomeGrupoState(data.nomeGrupo);
+        if (data.configValores) setConfigValoresState(data.configValores);
+        if (data.metaMensal !== undefined) setMetaMensalState(data.metaMensal);
+        if (data.jogadores) setJogadoresState(data.jogadores);
+        if (data.despesas) setDespesasState(data.despesas);
+        if (data.presencas) setPresencasState(data.presencas);
+      }
+      setCarregando(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Salvar no Firebase
+  const salvarFirebase = async (campo, valor) => {
+    setSalvando(true);
+    try {
+      await setDoc(doc(db, "grupos", GRUPO_ID), { [campo]: valor }, { merge: true });
+    } catch (e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const setNomeGrupo = (v) => { setNomeGrupoState(v); salvarFirebase("nomeGrupo", v); };
+  const setConfigValores = (v) => { setConfigValoresState(v); salvarFirebase("configValores", v); };
+  const setMetaMensal = (v) => { setMetaMensalState(v); salvarFirebase("metaMensal", v); };
+  const setJogadores = (val) => {
+    const next = typeof val === "function" ? val(jogadores) : val;
+    setJogadoresState(next); salvarFirebase("jogadores", next);
+  };
+  const setDespesas = (val) => {
+    const next = typeof val === "function" ? val(despesas) : val;
+    setDespesasState(next); salvarFirebase("despesas", next);
+  };
+  const setPresencas = (val) => {
+    const next = typeof val === "function" ? val(presencas) : val;
+    setPresencasState(next); salvarFirebase("presencas", next);
+  };
 
   const valorMensalista = parseDinheiro(configValores.mensalista);
   const valorAvulso = parseDinheiro(configValores.avulso);
@@ -87,7 +139,7 @@ export default function App() {
     if (senhaAtual !== senhaAdmin) { setErroSenha("Senha atual incorreta."); setOkSenha(""); return; }
     if (senhaNova.length < 4) { setErroSenha("Mínimo 4 caracteres."); setOkSenha(""); return; }
     if (senhaNova !== senhaConfirm) { setErroSenha("As senhas não coincidem."); setOkSenha(""); return; }
-    setSenhaAdminState(senhaNova); saveStorage("vfc_senha", senhaNova);
+    setSenhaAdmin(senhaNova); salvarFirebase("senhaAdmin", senhaNova);
     setErroSenha(""); setOkSenha("✅ Senha alterada com sucesso!");
     setSenhaAtual(""); setSenhaNova(""); setSenhaConfirm("");
   };
@@ -98,13 +150,10 @@ export default function App() {
   const totalMensalistas = jogadores.filter(j => j.tipo === "mensalista" && j.status === "ativo").length;
   const totalAvulsos = jogadores.filter(j => j.tipo === "avulso" && j.status === "ativo").length;
   const inadimplentes = jogadores.filter(j => { if (j.tipo !== "mensalista") return false; const p = j.pagamentos.find(p => p.mes === mesFiltro); return !p || !p.pago; });
-
-  // Aniversariantes do mês
   const mesAtual = parseInt(mesFiltro.split("-")[1]);
-  const aniversariantes = jogadores.filter(j => {
-    if (!j.nascimento) return false;
-    return parseInt(j.nascimento.split("-")[1]) === mesAtual;
-  });
+  const aniversariantes = jogadores.filter(j => j.nascimento && parseInt(j.nascimento.split("-")[1]) === mesAtual);
+  const metaValor = parseDinheiro(metaMensal);
+  const metaPct = metaValor > 0 ? Math.min((receitaMes / metaValor) * 100, 100) : 0;
 
   const salvarJogador = () => {
     if (!novoJogador.nome) return;
@@ -145,27 +194,20 @@ export default function App() {
 
   const getPagamento = (j) => j.pagamentos.find(p => p.mes === mesFiltro);
 
-  // Presença
   const togglePresenca = (jogadorId) => {
     setPresencas(prev => {
-      const key = dataPresenca;
-      const lista = prev[key] || [];
+      const lista = prev[dataPresenca] || [];
       const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
-      return { ...prev, [key]: nova };
+      return { ...prev, [dataPresenca]: nova };
     });
   };
   const presencasData = presencas[dataPresenca] || [];
 
-  // WhatsApp
   const gerarTextoWhatsapp = () => {
     if (inadimplentes.length === 0) return `✅ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nTodos os mensalistas estão em dia! 👏`;
     const lista = inadimplentes.map(j => `• ${j.nome}${j.telefone ? ` (${j.telefone})` : ""}`).join("\n");
     return `⚠️ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nPessoal, os jogadores abaixo ainda não pagaram a mensalidade de R$ ${configValores.mensalista}:\n\n${lista}\n\nPor favor, regularizem o pagamento. Obrigado! ⚽`;
   };
-
-  // Meta
-  const metaValor = parseDinheiro(metaMensal);
-  const metaPct = metaValor > 0 ? Math.min((receitaMes / metaValor) * 100, 100) : 0;
 
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
@@ -199,10 +241,16 @@ export default function App() {
     .stat-card { background: linear-gradient(135deg, #111827, #1a2540); border-radius: 16px; padding: 22px; border-left: 4px solid; }
     .progress-bar { height: 8px; background: #1e2e50; border-radius: 4px; overflow: hidden; margin-top: 8px; }
     .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-    .checkbox-item { display: flex; align-items: center; gap: 10; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
-    .checkbox-item:hover { background: #1a2540; }
     textarea.input { resize: vertical; min-height: 120px; }
   `;
+
+  if (carregando) return (
+    <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+      <style>{css}</style>
+      <span style={{ fontSize: 48 }}>⚽</span>
+      <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: "#3b82f6" }}>Carregando...</p>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3" }}>
@@ -236,7 +284,7 @@ export default function App() {
               <input className="input" placeholder="E-mail" value={novoJogador.email} onChange={e => setNovoJogador({ ...novoJogador, email: e.target.value })} />
               <input className="input" placeholder="(21) 98988-5422" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: maskTelefone(e.target.value) })} />
               <div>
-                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>DATA DE NASCIMENTO (para aniversários)</p>
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>DATA DE NASCIMENTO</p>
                 <input className="input" type="date" value={novoJogador.nascimento} onChange={e => setNovoJogador({ ...novoJogador, nascimento: e.target.value })} />
               </div>
               <select className="input" value={novoJogador.tipo} onChange={e => setNovoJogador({ ...novoJogador, tipo: e.target.value })}>
@@ -280,12 +328,10 @@ export default function App() {
       {/* MODAL HISTÓRICO */}
       {modalHistorico && (
         <div className="overlay">
-          <div className="modal" style={{ maxWidth: 520 }}>
+          <div className="modal">
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 4 }}>📋 HISTÓRICO</h2>
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 20 }}>{modalHistorico.nome}</p>
-            {modalHistorico.pagamentos.length === 0 ? (
-              <p style={{ color: "#64748b" }}>Nenhum pagamento registrado.</p>
-            ) : (
+            {modalHistorico.pagamentos.length === 0 ? <p style={{ color: "#64748b" }}>Nenhum pagamento registrado.</p> : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
                 {[...modalHistorico.pagamentos].sort((a,b) => b.mes.localeCompare(a.mes)).map((p, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#0d1525", borderRadius: 8 }}>
@@ -306,21 +352,21 @@ export default function App() {
       {/* MODAL PRESENÇA */}
       {modalPresenca && (
         <div className="overlay">
-          <div className="modal" style={{ maxWidth: 520 }}>
-            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 16 }}>📅 LISTA DE PRESENÇA</h2>
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 16 }}>📅 REGISTRAR PRESENÇA</h2>
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>DATA DO JOGO</p>
               <input className="input" type="date" value={dataPresenca} onChange={e => setDataPresenca(e.target.value)} />
             </div>
-            <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10, fontWeight: 600 }}>MARQUE OS PRESENTES ({presencasData.length}/{jogadores.filter(j=>j.status==="ativo").length})</p>
+            <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10, fontWeight: 600 }}>PRESENTES ({presencasData.length}/{jogadores.filter(j=>j.status==="ativo").length})</p>
             <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
               {jogadores.filter(j => j.status === "ativo").map(j => (
-                <div key={j.id} className="checkbox-item" onClick={() => togglePresenca(j.id)} style={{ background: presencasData.includes(j.id) ? "rgba(0,217,126,0.08)" : "transparent", border: `1px solid ${presencasData.includes(j.id) ? "rgba(0,217,126,0.3)" : "transparent"}`, borderRadius: 8 }}>
+                <div key={j.id} onClick={() => togglePresenca(j.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: presencasData.includes(j.id) ? "rgba(0,217,126,0.08)" : "transparent", border: `1px solid ${presencasData.includes(j.id) ? "rgba(0,217,126,0.3)" : "transparent"}` }}>
                   <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${presencasData.includes(j.id) ? "#00d97e" : "#2a3a5c"}`, background: presencasData.includes(j.id) ? "#00d97e" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {presencasData.includes(j.id) && <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>}
                   </div>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{j.nome}</span>
-                  <span className={`tag ${j.tipo === "mensalista" ? "tag-blue" : "tag-yellow"}`} style={{ fontSize: 11, marginLeft: "auto" }}>{j.tipo === "mensalista" ? "Mensal" : "Avulso"}</span>
+                  <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{ fontSize: 11, marginLeft: "auto" }}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
                 </div>
               ))}
             </div>
@@ -387,7 +433,7 @@ export default function App() {
         <div className="overlay">
           <div className="modal">
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>🎯 META MENSAL</h2>
-            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Defina a meta de arrecadação mensal do grupo.</p>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Meta de arrecadação mensal do grupo.</p>
             <input className="input" placeholder="Ex: 500,00" value={metaEdit} onChange={e => setMetaEdit(maskDinheiro(e.target.value))} />
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
               <button className="btn btn-green" style={{ flex: 1 }} onClick={() => { setMetaMensal(metaEdit); setModalMeta(false); }}>Salvar</button>
@@ -423,7 +469,7 @@ export default function App() {
           <span style={{ fontSize: 28 }}>⚽</span>
           <div>
             <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
-            <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>SISTEMA DE GESTÃO</p>
+            <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>SISTEMA DE GESTÃO {salvando && "· salvando..."}</p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -438,9 +484,9 @@ export default function App() {
 
       {/* NAV */}
       <nav style={{ padding: "16px 24px", display: "flex", gap: 8, borderBottom: "1px solid #1e2e50", background: "#0d1525", flexWrap: "wrap" }}>
-        {["dashboard", "jogadores", "financeiro", "presenca"].map(a => (
-          <button key={a} className={`nav-tab ${aba === a ? "active" : ""}`} onClick={() => setAba(a)}>
-            {a === "dashboard" ? "📊 Dashboard" : a === "jogadores" ? "👥 Jogadores" : a === "financeiro" ? "💰 Financeiro" : "📅 Presença"}
+        {["dashboard","jogadores","financeiro","presenca"].map(a => (
+          <button key={a} className={`nav-tab ${aba===a?"active":""}`} onClick={() => setAba(a)}>
+            {a==="dashboard"?"📊 Dashboard":a==="jogadores"?"👥 Jogadores":a==="financeiro"?"💰 Financeiro":"📅 Presença"}
           </button>
         ))}
       </nav>
@@ -455,44 +501,40 @@ export default function App() {
         {aba === "dashboard" && (
           <div>
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 20 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
-
-            {/* Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
               <div className="stat-card" style={{ borderLeftColor: "#00d97e" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>RECEITA DO MÊS</p>
                 <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#00d97e" }}>R$ {receitaMes.toFixed(2)}</p>
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min((receitaMes / ((totalMensalistas * valorMensalista + totalAvulsos * valorAvulso) || 1)) * 100, 100)}%`, background: "#00d97e" }} /></div>
+                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min((receitaMes/((totalMensalistas*valorMensalista+totalAvulsos*valorAvulso)||1))*100,100)}%`, background: "#00d97e" }} /></div>
               </div>
               <div className="stat-card" style={{ borderLeftColor: "#ff4757" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>DESPESAS DO MÊS</p>
                 <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#ff4757" }}>R$ {despesasMes.toFixed(2)}</p>
               </div>
-              <div className="stat-card" style={{ borderLeftColor: saldo >= 0 ? "#3b82f6" : "#ff4757" }}>
+              <div className="stat-card" style={{ borderLeftColor: saldo>=0?"#3b82f6":"#ff4757" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>SALDO</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: saldo >= 0 ? "#3b82f6" : "#ff4757" }}>R$ {saldo.toFixed(2)}</p>
+                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: saldo>=0?"#3b82f6":"#ff4757" }}>R$ {saldo.toFixed(2)}</p>
               </div>
               <div className="stat-card" style={{ borderLeftColor: "#ffba00" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>JOGADORES ATIVOS</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#ffba00" }}>{jogadores.filter(j => j.status === "ativo").length}</p>
+                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#ffba00" }}>{jogadores.filter(j=>j.status==="ativo").length}</p>
                 <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{totalMensalistas} mensalistas · {totalAvulsos} avulsos</p>
               </div>
             </div>
 
-            {/* Meta mensal */}
             {metaValor > 0 && (
               <div className="card" style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900 }}>🎯 META MENSAL</h3>
-                  <span style={{ fontWeight: 700, color: metaPct >= 100 ? "#00d97e" : "#ffba00" }}>{metaPct.toFixed(0)}% — R$ {receitaMes.toFixed(2)} / R$ {metaValor.toFixed(2)}</span>
+                  <span style={{ fontWeight: 700, color: metaPct>=100?"#00d97e":"#ffba00" }}>{metaPct.toFixed(0)}% — R$ {receitaMes.toFixed(2)} / R$ {metaValor.toFixed(2)}</span>
                 </div>
                 <div className="progress-bar" style={{ height: 14 }}>
-                  <div className="progress-fill" style={{ width: `${metaPct}%`, background: metaPct >= 100 ? "#00d97e" : metaPct >= 60 ? "#ffba00" : "#ff4757" }} />
+                  <div className="progress-fill" style={{ width: `${metaPct}%`, background: metaPct>=100?"#00d97e":metaPct>=60?"#ffba00":"#ff4757" }} />
                 </div>
                 {metaPct >= 100 && <p style={{ color: "#00d97e", fontSize: 13, marginTop: 8, fontWeight: 700 }}>🎉 Meta atingida!</p>}
               </div>
             )}
 
-            {/* Inadimplentes */}
             <div className="card" style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, color: "#ff4757" }}>⚠️ INADIMPLENTES ({inadimplentes.length})</h3>
@@ -518,62 +560,48 @@ export default function App() {
               )}
             </div>
 
-            {/* Aniversariantes */}
             {aniversariantes.length > 0 && (
               <div className="card" style={{ marginBottom: 20, borderColor: "rgba(168,85,247,0.3)" }}>
-                <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, marginBottom: 14, color: "#a855f7" }}>🎂 ANIVERSARIANTES DE {nomeMes(mesFiltro).split(" ")[0].toUpperCase()}</h3>
+                <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, marginBottom: 14, color: "#a855f7" }}>🎂 ANIVERSARIANTES</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {aniversariantes.map(j => {
-                    const dia = j.nascimento.split("-")[2];
-                    return (
-                      <div key={j.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(168,85,247,0.07)", borderRadius: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 22 }}>🎂</span>
-                          <div>
-                            <p style={{ fontWeight: 700 }}>{j.nome}</p>
-                            <p style={{ fontSize: 12, color: "#64748b" }}>Dia {dia}</p>
-                          </div>
+                  {aniversariantes.map(j => (
+                    <div key={j.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(168,85,247,0.07)", borderRadius: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 22 }}>🎂</span>
+                        <div>
+                          <p style={{ fontWeight: 700 }}>{j.nome}</p>
+                          <p style={{ fontSize: 12, color: "#64748b" }}>Dia {j.nascimento.split("-")[2]}</p>
                         </div>
-                        <span className="tag tag-purple">Parabéns! 🎉</span>
                       </div>
-                    );
-                  })}
+                      <span className="tag tag-purple">Parabéns! 🎉</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Gráficos */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div className="card">
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 14 }}>RECEITA POR TIPO</h3>
-                {[{ label: "Mensalistas", color: "#3b82f6", valor: jogadores.filter(j=>j.tipo==="mensalista").reduce((a,j)=>{ const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago); return a+(p?p.valor:0); },0) },
-                  { label: "Avulsos", color: "#00d97e", valor: jogadores.filter(j=>j.tipo==="avulso").reduce((a,j)=>{ const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago); return a+(p?p.valor:0); },0) }].map(item => (
+                {[{label:"Mensalistas",color:"#3b82f6",valor:jogadores.filter(j=>j.tipo==="mensalista").reduce((a,j)=>{const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);return a+(p?p.valor:0);},0)},{label:"Avulsos",color:"#00d97e",valor:jogadores.filter(j=>j.tipo==="avulso").reduce((a,j)=>{const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);return a+(p?p.valor:0);},0)}].map(item=>(
                   <div key={item.label} style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 14, color: "#94a3b8" }}>{item.label}</span>
                       <span style={{ fontWeight: 700, color: item.color }}>R$ {item.valor.toFixed(2)}</span>
                     </div>
-                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${receitaMes ? (item.valor/receitaMes)*100 : 0}%`, background: item.color }} /></div>
+                    <div className="progress-bar"><div className="progress-fill" style={{ width: `${receitaMes?(item.valor/receitaMes)*100:0}%`, background: item.color }} /></div>
                   </div>
                 ))}
-                {receitaMes === 0 && <p style={{ color: "#64748b", fontSize: 14 }}>Nenhuma receita neste mês.</p>}
+                {receitaMes===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhuma receita neste mês.</p>}
               </div>
               <div className="card">
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 14 }}>DESPESAS POR CATEGORIA</h3>
-                {["Infraestrutura","Equipamentos","Administrativo","Outros"].map(cat => {
-                  const val = despesas.filter(d=>d.categoria===cat&&d.data.startsWith(mesFiltro)).reduce((a,d)=>a+d.valor,0);
-                  if (!val) return null;
-                  return (
-                    <div key={cat} style={{ marginBottom: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontSize: 14, color: "#94a3b8" }}>{cat}</span>
-                        <span style={{ fontWeight: 700, color: "#ff4757" }}>R$ {val.toFixed(2)}</span>
-                      </div>
-                      <div className="progress-bar"><div className="progress-fill" style={{ width: `${despesasMes?(val/despesasMes)*100:0}%`, background: "#ff4757" }} /></div>
-                    </div>
-                  );
+                {["Infraestrutura","Equipamentos","Administrativo","Outros"].map(cat=>{
+                  const val=despesas.filter(d=>d.categoria===cat&&d.data.startsWith(mesFiltro)).reduce((a,d)=>a+d.valor,0);
+                  if(!val)return null;
+                  return(<div key={cat} style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:14,color:"#94a3b8"}}>{cat}</span><span style={{fontWeight:700,color:"#ff4757"}}>R$ {val.toFixed(2)}</span></div><div className="progress-bar"><div className="progress-fill" style={{width:`${despesasMes?(val/despesasMes)*100:0}%`,background:"#ff4757"}}/></div></div>);
                 })}
-                {despesasMes === 0 && <p style={{ color: "#64748b", fontSize: 14 }}>Nenhuma despesa neste mês.</p>}
+                {despesasMes===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhuma despesa neste mês.</p>}
               </div>
             </div>
           </div>
@@ -584,13 +612,11 @@ export default function App() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>JOGADORES</h2>
-              {isAdmin && <button className="btn btn-green" onClick={() => { setJogadorEdit(null); setNovoJogador({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" }); setModalJogador(true); }}>+ Novo Jogador</button>}
+              {isAdmin && <button className="btn btn-green" onClick={() => { setJogadorEdit(null); setNovoJogador({ nome:"",email:"",telefone:"",nascimento:"",tipo:"mensalista",status:"ativo" }); setModalJogador(true); }}>+ Novo Jogador</button>}
             </div>
             <div className="card">
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 90px 100px 160px", gap: 8, padding: "8px 16px", marginBottom: 8 }}>
-                {["NOME","EMAIL","TELEFONE","TIPO","STATUS","AÇÕES"].map(h => (
-                  <span key={h} style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>{h}</span>
-                ))}
+                {["NOME","EMAIL","TELEFONE","TIPO","STATUS","AÇÕES"].map(h=><span key={h} style={{fontSize:11,fontWeight:700,color:"#475569"}}>{h}</span>)}
               </div>
               {jogadores.map(j => {
                 const pag = getPagamento(j);
@@ -600,8 +626,8 @@ export default function App() {
                       <p style={{ fontWeight: 700, fontSize: 15 }}>{j.nome}</p>
                       {j.nascimento && <p style={{ fontSize: 11, color: "#64748b" }}>🎂 {j.nascimento.split("-").reverse().join("/")}</p>}
                     </div>
-                    <p style={{ fontSize: 13, color: "#94a3b8" }}>{j.email || "—"}</p>
-                    <p style={{ fontSize: 13, color: "#94a3b8" }}>{j.telefone || "—"}</p>
+                    <p style={{ fontSize: 13, color: "#94a3b8" }}>{j.email||"—"}</p>
+                    <p style={{ fontSize: 13, color: "#94a3b8" }}>{j.telefone||"—"}</p>
                     <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
                     <span className={`tag ${j.status==="ativo"?"tag-green":"tag-red"}`}>{j.status}</span>
                     <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
@@ -613,13 +639,7 @@ export default function App() {
                   </div>
                 );
               })}
-              {jogadores.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                  <p style={{ fontSize: 40, marginBottom: 12 }}>👥</p>
-                  <p style={{ color: "#64748b", fontSize: 15 }}>Nenhum jogador cadastrado ainda.</p>
-                  {isAdmin && <p style={{ color: "#475569", fontSize: 13, marginTop: 6 }}>Clique em "+ Novo Jogador" para começar!</p>}
-                </div>
-              )}
+              {jogadores.length===0&&(<div style={{textAlign:"center",padding:"40px 20px"}}><p style={{fontSize:40,marginBottom:12}}>👥</p><p style={{color:"#64748b",fontSize:15}}>Nenhum jogador cadastrado ainda.</p>{isAdmin&&<p style={{color:"#475569",fontSize:13,marginTop:6}}>Clique em "+ Novo Jogador" para começar!</p>}</div>)}
             </div>
           </div>
         )}
@@ -637,46 +657,23 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <div className="card">
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, marginBottom: 16, color: "#00d97e" }}>💚 RECEITAS — {nomeMes(mesFiltro)}</h3>
-                {jogadores.filter(j => { const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago); return !!p; }).map(j => {
-                  const pag = j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);
-                  return (
-                    <div key={j.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1a2540" }}>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 600 }}>{j.nome}</p>
-                        <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{ fontSize: 11 }}>{j.tipo}</span>
-                      </div>
-                      <p style={{ fontWeight: 700, color: "#00d97e" }}>+ R$ {pag.valor.toFixed(2)}</p>
-                    </div>
-                  );
+                {jogadores.filter(j=>{const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);return!!p;}).map(j=>{
+                  const pag=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);
+                  return(<div key={j.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #1a2540"}}><div><p style={{fontSize:14,fontWeight:600}}>{j.nome}</p><span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{fontSize:11}}>{j.tipo}</span></div><p style={{fontWeight:700,color:"#00d97e"}}>+ R$ {pag.valor.toFixed(2)}</p></div>);
                 })}
-                {receitaMes === 0 && <p style={{ color: "#64748b", fontSize: 14 }}>Nenhuma receita neste mês.</p>}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0", marginTop: 8 }}>
-                  <span style={{ fontWeight: 700 }}>TOTAL</span>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: "#00d97e" }}>R$ {receitaMes.toFixed(2)}</span>
-                </div>
+                {receitaMes===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhuma receita neste mês.</p>}
+                <div style={{display:"flex",justifyContent:"space-between",padding:"14px 0 0",marginTop:8}}><span style={{fontWeight:700}}>TOTAL</span><span style={{fontWeight:900,fontSize:18,color:"#00d97e"}}>R$ {receitaMes.toFixed(2)}</span></div>
               </div>
               <div className="card">
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, marginBottom: 16, color: "#ff4757" }}>🔴 DESPESAS — {nomeMes(mesFiltro)}</h3>
-                {despesas.filter(d=>d.data.startsWith(mesFiltro)).map(d => (
-                  <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1a2540" }}>
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 600 }}>{d.descricao}</p>
-                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                        <span className="tag tag-red" style={{ fontSize: 11 }}>{d.categoria}</span>
-                        <span style={{ fontSize: 11, color: "#64748b" }}>{d.data.split("-").reverse().join("/")}</span>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <p style={{ fontWeight: 700, color: "#ff4757" }}>- R$ {d.valor.toFixed(2)}</p>
-                      {isAdmin && <button className="btn btn-red" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => setDespesas(despesas.filter(x=>x.id!==d.id))}>🗑</button>}
-                    </div>
+                {despesas.filter(d=>d.data.startsWith(mesFiltro)).map(d=>(
+                  <div key={d.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #1a2540"}}>
+                    <div><p style={{fontSize:14,fontWeight:600}}>{d.descricao}</p><div style={{display:"flex",gap:6,marginTop:4}}><span className="tag tag-red" style={{fontSize:11}}>{d.categoria}</span><span style={{fontSize:11,color:"#64748b"}}>{d.data.split("-").reverse().join("/")}</span></div></div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}><p style={{fontWeight:700,color:"#ff4757"}}>- R$ {d.valor.toFixed(2)}</p>{isAdmin&&<button className="btn btn-red" style={{fontSize:11,padding:"4px 8px"}} onClick={()=>setDespesas(despesas.filter(x=>x.id!==d.id))}>🗑</button>}</div>
                   </div>
                 ))}
-                {despesas.filter(d=>d.data.startsWith(mesFiltro)).length === 0 && <p style={{ color: "#64748b", fontSize: 14 }}>Nenhuma despesa registrada.</p>}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0", marginTop: 8 }}>
-                  <span style={{ fontWeight: 700 }}>TOTAL</span>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: "#ff4757" }}>R$ {despesasMes.toFixed(2)}</span>
-                </div>
+                {despesas.filter(d=>d.data.startsWith(mesFiltro)).length===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhuma despesa registrada.</p>}
+                <div style={{display:"flex",justifyContent:"space-between",padding:"14px 0 0",marginTop:8}}><span style={{fontWeight:700}}>TOTAL</span><span style={{fontWeight:900,fontSize:18,color:"#ff4757"}}>R$ {despesasMes.toFixed(2)}</span></div>
               </div>
             </div>
             <div style={{ marginTop: 20, padding: "24px 28px", borderRadius: 16, background: saldo>=0?"linear-gradient(135deg, rgba(0,217,126,0.1), rgba(0,217,126,0.05))":"linear-gradient(135deg, rgba(255,71,87,0.1), rgba(255,71,87,0.05))", border: `1px solid ${saldo>=0?"rgba(0,217,126,0.3)":"rgba(255,71,87,0.3)"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -684,9 +681,7 @@ export default function App() {
                 <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900 }}>BALANÇO DO MÊS</p>
                 <p style={{ color: "#64748b", fontSize: 14 }}>Receita R$ {receitaMes.toFixed(2)} − Despesas R$ {despesasMes.toFixed(2)}</p>
               </div>
-              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 42, fontWeight: 900, color: saldo>=0?"#00d97e":"#ff4757" }}>
-                {saldo>=0?"+":""}R$ {saldo.toFixed(2)}
-              </p>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 42, fontWeight: 900, color: saldo>=0?"#00d97e":"#ff4757" }}>{saldo>=0?"+":""}R$ {saldo.toFixed(2)}</p>
             </div>
           </div>
         )}
@@ -698,61 +693,34 @@ export default function App() {
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>📅 LISTA DE PRESENÇA</h2>
               {isAdmin && <button className="btn btn-green" onClick={() => setModalPresenca(true)}>+ Registrar Presença</button>}
             </div>
-
-            {/* Resumo de presenças do mês */}
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>FREQUÊNCIA — {nomeMes(mesFiltro)}</h3>
               {(() => {
-                const jogosDoMes = Object.keys(presencas).filter(d => d.startsWith(mesFiltro)).sort();
-                if (jogosDoMes.length === 0) return <p style={{ color: "#64748b", fontSize: 14 }}>Nenhuma presença registrada neste mês.</p>;
+                const jogosDoMes = Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).sort();
+                if (jogosDoMes.length===0) return <p style={{color:"#64748b",fontSize:14}}>Nenhuma presença registrada neste mês.</p>;
                 return (
                   <div>
-                    <p style={{ color: "#64748b", fontSize: 13, marginBottom: 14 }}>{jogosDoMes.length} jogo(s) registrado(s)</p>
-                    {jogadores.filter(j=>j.status==="ativo").sort((a,b) => {
-                      const fa = jogosDoMes.filter(d=>(presencas[d]||[]).includes(a.id)).length;
-                      const fb = jogosDoMes.filter(d=>(presencas[d]||[]).includes(b.id)).length;
-                      return fb - fa;
-                    }).map(j => {
-                      const presentes = jogosDoMes.filter(d=>(presencas[d]||[]).includes(j.id)).length;
-                      const pct = jogosDoMes.length ? (presentes/jogosDoMes.length)*100 : 0;
-                      return (
-                        <div key={j.id} style={{ marginBottom: 12 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>{j.nome}</span>
-                            <span style={{ fontSize: 13, color: pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757", fontWeight: 700 }}>{presentes}/{jogosDoMes.length} ({pct.toFixed(0)}%)</span>
-                          </div>
-                          <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%`, background: pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757" }} /></div>
-                        </div>
-                      );
+                    <p style={{color:"#64748b",fontSize:13,marginBottom:14}}>{jogosDoMes.length} jogo(s) registrado(s)</p>
+                    {jogadores.filter(j=>j.status==="ativo").sort((a,b)=>{
+                      const fa=jogosDoMes.filter(d=>(presencas[d]||[]).includes(a.id)).length;
+                      const fb=jogosDoMes.filter(d=>(presencas[d]||[]).includes(b.id)).length;
+                      return fb-fa;
+                    }).map(j=>{
+                      const presentes=jogosDoMes.filter(d=>(presencas[d]||[]).includes(j.id)).length;
+                      const pct=jogosDoMes.length?(presentes/jogosDoMes.length)*100:0;
+                      return(<div key={j.id} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:14,fontWeight:600}}>{j.nome}</span><span style={{fontSize:13,color:pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757",fontWeight:700}}>{presentes}/{jogosDoMes.length} ({pct.toFixed(0)}%)</span></div><div className="progress-bar"><div className="progress-fill" style={{width:`${pct}%`,background:pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757"}}/></div></div>);
                     })}
                   </div>
                 );
               })()}
             </div>
-
-            {/* Histórico por data */}
             <div className="card">
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>HISTÓRICO DE JOGOS</h3>
-              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).sort().reverse().map(data => {
-                const lista = presencas[data] || [];
-                return (
-                  <div key={data} style={{ padding: "14px 0", borderBottom: "1px solid #1a2540" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <p style={{ fontWeight: 700 }}>{data.split("-").reverse().join("/")}</p>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <span className="tag tag-blue">{lista.length} presentes</span>
-                        {isAdmin && <button className="btn btn-red" style={{ fontSize: 11, padding: "3px 8px" }} onClick={() => { if(confirm("Remover este jogo?")) { const np={...presencas}; delete np[data]; setPresencas(np); } }}>🗑</button>}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {jogadores.filter(j=>lista.includes(j.id)).map(j => (
-                        <span key={j.id} className="tag tag-green" style={{ fontSize: 11 }}>{j.nome}</span>
-                      ))}
-                    </div>
-                  </div>
-                );
+              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).sort().reverse().map(data=>{
+                const lista=presencas[data]||[];
+                return(<div key={data} style={{padding:"14px 0",borderBottom:"1px solid #1a2540"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><p style={{fontWeight:700}}>{data.split("-").reverse().join("/")}</p><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="tag tag-blue">{lista.length} presentes</span>{isAdmin&&<button className="btn btn-red" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>{if(confirm("Remover este jogo?")){const np={...presencas};delete np[data];setPresencas(np);}}}>🗑</button>}</div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{jogadores.filter(j=>lista.includes(j.id)).map(j=><span key={j.id} className="tag tag-green" style={{fontSize:11}}>{j.nome}</span>)}</div></div>);
               })}
-              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).length===0 && <p style={{ color: "#64748b", fontSize: 14 }}>Nenhum jogo registrado neste mês.</p>}
+              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).length===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhum jogo registrado neste mês.</p>}
             </div>
           </div>
         )}

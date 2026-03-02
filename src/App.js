@@ -191,7 +191,7 @@ export default function App() {
 
   const salvarDespesa = () => {
     if (!novaDespesa.descricao || !novaDespesa.valor) return;
-    setDespesas([...despesas, { ...novaDespesa, id: Date.now(), valor: parseFloat(novaDespesa.valor) }]);
+    setDespesas([...despesas, { ...novaDespesa, id: Date.now(), valor: parseDinheiro(novaDespesa.valor) }]);
     setModalDespesa(false);
     setNovaDespesa({ descricao: "", valor: "", data: "", categoria: "Infraestrutura" });
   };
@@ -341,7 +341,7 @@ export default function App() {
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 20 }}>NOVA DESPESA</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input className="input" placeholder="Descrição" value={novaDespesa.descricao} onChange={e => setNovaDespesa({ ...novaDespesa, descricao: e.target.value })} />
-              <input className="input" placeholder="Valor (R$)" type="number" value={novaDespesa.valor} onChange={e => setNovaDespesa({ ...novaDespesa, valor: e.target.value })} />
+              <input className="input" placeholder="Ex: 150,00" inputMode="numeric" value={novaDespesa.valor} onChange={e => setNovaDespesa({ ...novaDespesa, valor: maskDinheiro(e.target.value) })} />
               <input className="input" type="date" value={novaDespesa.data} onChange={e => setNovaDespesa({ ...novaDespesa, data: e.target.value })} />
               <select className="input" value={novaDespesa.categoria} onChange={e => setNovaDespesa({ ...novaDespesa, categoria: e.target.value })}>
                 <option>Infraestrutura</option><option>Equipamentos</option><option>Administrativo</option><option>Outros</option>

@@ -141,7 +141,8 @@ export default function App() {
   };
   const setPresencas = (val) => {
     const next = typeof val === "function" ? val(presencas) : val;
-    setPresencasState(next); salvarFirebase("presencas", next);
+    const safe = next && typeof next === "object" ? next : {};
+    setPresencasState(safe); salvarFirebase("presencas", safe);
   };
 
   const valorMensalista = parseDinheiro(configValores.mensalista);
@@ -221,13 +222,15 @@ export default function App() {
   const getPagamento = (j) => j.pagamentos.find(p => p.mes === mesFiltro);
 
   const togglePresenca = (jogadorId) => {
-    setPresencas(prev => {
-      const lista = prev[dataPresenca] || [];
+    try {
+      const presencasAtual = presencas && typeof presencas === "object" ? presencas : {};
+      const lista = Array.isArray(presencasAtual[dataPresenca]) ? presencasAtual[dataPresenca] : [];
       const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
-      return { ...prev, [dataPresenca]: nova };
-    });
+      const atualizado = { ...presencasAtual, [dataPresenca]: nova };
+      setPresencas(atualizado);
+    } catch(e) { console.error("Erro presenca:", e); }
   };
-  const presencasData = presencas[dataPresenca] || [];
+  const presencasData = (presencas && Array.isArray(presencas[dataPresenca])) ? presencas[dataPresenca] : [];
 
   const gerarTextoWhatsapp = () => {
     if (inadimplentes.length === 0) return `✅ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nTodos os mensalistas estão em dia! 👏`;
@@ -727,7 +730,7 @@ export default function App() {
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>FREQUÊNCIA — {nomeMes(mesFiltro)}</h3>
               {(() => {
-                const jogosDoMes = Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).sort();
+                const jogosDoMes = Object.keys(presencas || {}).filter(d=>d.startsWith(mesFiltro)).sort();
                 if (jogosDoMes.length===0) return <p style={{color:"#64748b",fontSize:14}}>Nenhuma presença registrada neste mês.</p>;
                 return (
                   <div>
@@ -747,11 +750,11 @@ export default function App() {
             </div>
             <div className="card">
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>HISTÓRICO DE JOGOS</h3>
-              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).sort().reverse().map(data=>{
+              {Object.keys(presencas || {}).filter(d=>d.startsWith(mesFiltro)).sort().reverse().map(data=>{
                 const lista=presencas[data]||[];
                 return(<div key={data} style={{padding:"14px 0",borderBottom:"1px solid #1a2540"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><p style={{fontWeight:700}}>{data.split("-").reverse().join("/")}</p><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="tag tag-blue">{lista.length} presentes</span>{isAdmin&&<button className="btn btn-red" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>{if(confirm("Remover este jogo?")){const np={...presencas};delete np[data];setPresencas(np);}}}>🗑</button>}</div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{jogadores.filter(j=>lista.includes(j.id)).map(j=><span key={j.id} className="tag tag-green" style={{fontSize:11}}>{j.nome}</span>)}</div></div>);
               })}
-              {Object.keys(presencas).filter(d=>d.startsWith(mesFiltro)).length===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhum jogo registrado neste mês.</p>}
+              {Object.keys(presencas || {}).filter(d=>d.startsWith(mesFiltro)).length===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhum jogo registrado neste mês.</p>}
             </div>
           </div>
         )}

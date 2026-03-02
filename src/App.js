@@ -73,6 +73,9 @@ export default function App() {
   const [modalWhatsapp, setModalWhatsapp] = useState(false);
   const [jogadorEdit, setJogadorEdit] = useState(null);
   const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
+  const [diaAniv, setDiaAniv] = useState("");
+  const [mesAniv, setMesAniv] = useState("");
+  const [anoAniv, setAnoAniv] = useState("");
   const [novaDespesa, setNovaDespesa] = useState({ descricao: "", valor: "", data: "", categoria: "Infraestrutura" });
   const [aba, setAba] = useState("dashboard");
   const [mesFiltro, setMesFiltro] = useState(() => {
@@ -81,6 +84,8 @@ export default function App() {
   });
   const [dataPresenca, setDataPresenca] = useState(() => new Date().toISOString().split("T")[0]);
   const [salvando, setSalvando] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
 
   // Carregar dados do Firebase em tempo real
   useEffect(() => {
@@ -99,6 +104,20 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const instalarApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") setShowInstall(false);
+    setDeferredPrompt(null);
+  };
 
   // Salvar no Firebase
   const salvarFirebase = async (campo, valor) => {
@@ -157,13 +176,16 @@ export default function App() {
 
   const salvarJogador = () => {
     if (!novoJogador.nome) return;
+    const nascFormatado = (anoAniv && mesAniv && diaAniv) ? `${anoAniv}-${mesAniv.padStart(2,"0")}-${diaAniv.padStart(2,"0")}` : "";
+    const jogadorFinal = { ...novoJogador, nascimento: nascFormatado };
     if (jogadorEdit !== null) {
-      setJogadores(jogadores.map(j => j.id === jogadorEdit ? { ...j, ...novoJogador } : j));
+      setJogadores(jogadores.map(j => j.id === jogadorEdit ? { ...j, ...jogadorFinal } : j));
     } else {
-      setJogadores([...jogadores, { ...novoJogador, id: Date.now(), pagamentos: [] }]);
+      setJogadores([...jogadores, { ...jogadorFinal, id: Date.now(), pagamentos: [] }]);
     }
     setModalJogador(false);
     setNovoJogador({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
+    setDiaAniv(""); setMesAniv(""); setAnoAniv("");
     setJogadorEdit(null);
   };
 
@@ -176,6 +198,10 @@ export default function App() {
 
   const editarJogador = (j) => {
     setNovoJogador({ nome: j.nome, email: j.email, telefone: j.telefone, nascimento: j.nascimento||"", tipo: j.tipo, status: j.status });
+    if (j.nascimento) {
+      const parts = j.nascimento.split("-");
+      setAnoAniv(parts[0]); setMesAniv(parts[1]); setDiaAniv(parts[2]);
+    } else { setAnoAniv(""); setMesAniv(""); setDiaAniv(""); }
     setJogadorEdit(j.id); setModalJogador(true);
   };
 
@@ -284,8 +310,12 @@ export default function App() {
               <input className="input" placeholder="E-mail" value={novoJogador.email} onChange={e => setNovoJogador({ ...novoJogador, email: e.target.value })} />
               <input className="input" placeholder="(21) 98988-5422" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: maskTelefone(e.target.value) })} />
               <div>
-                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>DATA DE NASCIMENTO</p>
-                <input className="input" type="date" value={novoJogador.nascimento} onChange={e => setNovoJogador({ ...novoJogador, nascimento: e.target.value })} />
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>DATA DE NASCIMENTO</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8 }}>
+                  <input className="input" placeholder="Dia" type="number" min="1" max="31" value={diaAniv} onChange={e => setDiaAniv(e.target.value)} />
+                  <input className="input" placeholder="Mês" type="number" min="1" max="12" value={mesAniv} onChange={e => setMesAniv(e.target.value)} />
+                  <input className="input" placeholder="Ano (ex: 1985)" type="number" min="1900" max="2099" value={anoAniv} onChange={e => setAnoAniv(e.target.value)} />
+                </div>
               </div>
               <select className="input" value={novoJogador.tipo} onChange={e => setNovoJogador({ ...novoJogador, tipo: e.target.value })}>
                 <option value="mensalista">Mensalista (R$ {configValores.mensalista})</option>
@@ -478,6 +508,7 @@ export default function App() {
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
+          {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLoginModal(true); setSenha(""); setErroLogin(""); }}>Trocar Acesso</button>
         </div>
       </header>

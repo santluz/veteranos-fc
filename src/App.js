@@ -104,6 +104,10 @@ export default function App() {
   const [salvando, setSalvando] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [showSenhaLogin, setShowSenhaLogin] = useState(false);
+  const [showSenhaAtual, setShowSenhaAtual] = useState(false);
+  const [showSenhaNova, setShowSenhaNova] = useState(false);
+  const [showSenhaConfirm, setShowSenhaConfirm] = useState(false);
 
   // Carregar dados do Firebase em tempo real quando grupoId mudar
   useEffect(() => {
@@ -245,12 +249,10 @@ export default function App() {
     const id = codigo.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (!id) { setErroCadastro("Código inválido. Use letras, números e underline."); return; }
     try {
-      // Verificar se código já existe
       const snap = await new Promise(resolve => {
         const unsub = onSnapshot(doc(db, "grupos", id), s => { unsub(); resolve(s); });
       });
       if (snap.exists()) { setErroCadastro("Este código já está em uso. Escolha outro."); return; }
-      // Criar grupo com status pendente
       await setDoc(doc(db, "grupos", id), {
         nomeGrupo: ng.toUpperCase(),
         responsavel,
@@ -264,6 +266,26 @@ export default function App() {
         despesas: [],
         presencas: {}
       });
+      // Enviar email via EmailJS
+      try {
+        await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service_id: "service_veteranos",
+            template_id: "template_cadastro",
+            user_id: "user_veteranos",
+            template_params: {
+              to_email: "esantluz@gmail.com",
+              grupo_nome: ng,
+              grupo_codigo: id,
+              responsavel: responsavel,
+              telefone: maskTelefone(telefone),
+              data: new Date().toLocaleDateString("pt-BR")
+            }
+          })
+        });
+      } catch(emailErr) { console.log("Email não enviado:", emailErr); }
       setOkCadastro("✅ Cadastro enviado com sucesso! Aguarde a aprovação do administrador.");
       setErroCadastro("");
       setCadastroForm({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
@@ -445,7 +467,10 @@ _Enviado pela gestão do grupo_ ⚽`;
                 </button>
               </div>
               {tipoAcesso === "admin" && (
-                <input className="input" type="password" placeholder="Senha do administrador" value={senhaInput} onChange={e => { setSenhaInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
+                <div style={{ position: "relative" }}>
+                  <input className="input" type={showSenhaLogin ? "text" : "password"} placeholder="Senha do administrador" value={senhaInput} onChange={e => { setSenhaInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} style={{ paddingRight: 44 }} />
+                  <button onClick={() => setShowSenhaLogin(!showSenhaLogin)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>{showSenhaLogin ? "🙈" : "👁"}</button>
+                </div>
               )}
               {erroLoginGrupo && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroLoginGrupo}</p>}
             </div>
@@ -475,7 +500,7 @@ _Enviado pela gestão do grupo_ ⚽`;
               </div>
               <div>
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>TELEFONE / WHATSAPP</p>
-                <input className="input" placeholder="(21) 98988-5422" value={cadastroForm.telefone} onChange={e => setCadastroForm({ ...cadastroForm, telefone: maskTelefone(e.target.value) })} />
+                <input className="input" placeholder="(21) 99999-9999" value={cadastroForm.telefone} onChange={e => setCadastroForm({ ...cadastroForm, telefone: maskTelefone(e.target.value) })} />
               </div>
               <div>
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>CÓDIGO DESEJADO PARA O GRUPO</p>
@@ -501,7 +526,7 @@ _Enviado pela gestão do grupo_ ⚽`;
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <input className="input" placeholder="Nome completo" value={novoJogador.nome} onChange={e => setNovoJogador({ ...novoJogador, nome: e.target.value })} />
               <input className="input" placeholder="E-mail" value={novoJogador.email} onChange={e => setNovoJogador({ ...novoJogador, email: e.target.value })} />
-              <input className="input" placeholder="(21) 98988-5422" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: maskTelefone(e.target.value) })} />
+              <input className="input" placeholder="(21) 99999-9999" value={novoJogador.telefone} onChange={e => setNovoJogador({ ...novoJogador, telefone: maskTelefone(e.target.value) })} />
               <div>
                 <p style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>DATA DE NASCIMENTO</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8 }}>
@@ -680,9 +705,18 @@ _Enviado pela gestão do grupo_ ⚽`;
           <div className="modal">
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 20 }}>🔐 TROCAR SENHA</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input className="input" type="password" placeholder="Senha atual" value={senhaAtual} onChange={e => { setSenhaAtual(e.target.value); setErroSenha(""); setOkSenha(""); }} />
-              <input className="input" type="password" placeholder="Nova senha" value={senhaNova} onChange={e => { setSenhaNova(e.target.value); setErroSenha(""); setOkSenha(""); }} />
-              <input className="input" type="password" placeholder="Confirmar nova senha" value={senhaConfirm} onChange={e => { setSenhaConfirm(e.target.value); setErroSenha(""); setOkSenha(""); }} />
+              <div style={{ position: "relative" }}>
+                <input className="input" type={showSenhaAtual ? "text" : "password"} placeholder="Senha atual" value={senhaAtual} onChange={e => { setSenhaAtual(e.target.value); setErroSenha(""); setOkSenha(""); }} style={{ paddingRight: 44 }} />
+                <button onClick={() => setShowSenhaAtual(!showSenhaAtual)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>{showSenhaAtual ? "🙈" : "👁"}</button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input className="input" type={showSenhaNova ? "text" : "password"} placeholder="Nova senha" value={senhaNova} onChange={e => { setSenhaNova(e.target.value); setErroSenha(""); setOkSenha(""); }} style={{ paddingRight: 44 }} />
+                <button onClick={() => setShowSenhaNova(!showSenhaNova)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>{showSenhaNova ? "🙈" : "👁"}</button>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input className="input" type={showSenhaConfirm ? "text" : "password"} placeholder="Confirmar nova senha" value={senhaConfirm} onChange={e => { setSenhaConfirm(e.target.value); setErroSenha(""); setOkSenha(""); }} style={{ paddingRight: 44 }} />
+                <button onClick={() => setShowSenhaConfirm(!showSenhaConfirm)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>{showSenhaConfirm ? "🙈" : "👁"}</button>
+              </div>
               {erroSenha && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroSenha}</p>}
               {okSenha && <p style={{ color: "#00d97e", fontSize: 13 }}>{okSenha}</p>}
             </div>

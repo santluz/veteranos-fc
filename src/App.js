@@ -141,7 +141,8 @@ export default function App() {
       setCarregando(false);
     });
     return () => unsub();
-  }, [grupoId]);
+  // eslint-disable-next-line
+  }, [grupoId, isMaster]);
   // PWA install prompt
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); };

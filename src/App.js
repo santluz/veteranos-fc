@@ -222,7 +222,7 @@ export default function App() {
       validarSenhaAdmin();
     }
   // eslint-disable-next-line
-  }, [carregando, senhaAdmin]);
+  }, [carregando, senhaAdmin, isMaster]);
 
 
 
@@ -933,11 +933,6 @@ export default function App() {
 function MasterPanel({ db, grupoAtual }) {
   const [grupos, setGrupos] = useState([]);
   const [carregando, setCarregando] = useState(true);
-
-  useEffect(() => {
-    const { collection, onSnapshot: snap } = require("firebase/firestore");
-    // eslint-disable-next-line
-  }, []);
 
   useEffect(() => {
     import("firebase/firestore").then(({ collection, onSnapshot: snapFn, query }) => {

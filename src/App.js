@@ -52,9 +52,7 @@ export default function App() {
   const [telaLogin, setTelaLogin] = useState(true);
   const [carregando, setCarregando] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loginModal, setLoginModal] = useState(true);
   const [senha, setSenha] = useState("");
-  const [erroLogin, setErroLogin] = useState("");
 
   // Dados do Firebase
   const [senhaAdmin, setSenhaAdmin] = useState("admin123");
@@ -200,12 +198,7 @@ export default function App() {
   // eslint-disable-next-line
   }, [carregando, senhaAdmin]);
 
-  const entrar = (admin) => {
-    if (admin) {
-      if (senha === senhaAdmin) { setIsAdmin(true); setLoginModal(false); }
-      else { setErroLogin("Senha incorreta."); }
-    } else { setIsAdmin(false); setLoginModal(false); }
-  };
+
 
   const trocarSenha = () => {
     if (senhaAtual !== senhaAdmin) { setErroSenha("Senha atual incorreta."); setOkSenha(""); return; }

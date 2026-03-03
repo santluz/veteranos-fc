@@ -394,13 +394,13 @@ export default function App() {
             <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10, fontWeight: 600 }}>PRESENTES ({presencasData.length}/{jogadores.filter(j=>j.status==="ativo").length})</p>
             <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
               {jogadores.filter(j => j.status === "ativo").map(j => (
-                <div key={j.id} onClick={() => togglePresenca(j.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: presencasData.includes(j.id) ? "rgba(0,217,126,0.08)" : "transparent", border: `1px solid ${presencasData.includes(j.id) ? "rgba(0,217,126,0.3)" : "transparent"}` }}>
+                <button key={j.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePresenca(j.id); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: presencasData.includes(j.id) ? "rgba(0,217,126,0.08)" : "transparent", border: `1px solid ${presencasData.includes(j.id) ? "rgba(0,217,126,0.3)" : "transparent"}`, width: "100%", textAlign: "left", fontFamily: "'Barlow', sans-serif" }}>
                   <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${presencasData.includes(j.id) ? "#00d97e" : "#2a3a5c"}`, background: presencasData.includes(j.id) ? "#00d97e" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {presencasData.includes(j.id) && <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>}
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>{j.nome}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#e8ecf3" }}>{j.nome}</span>
                   <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{ fontSize: 11, marginLeft: "auto" }}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
-                </div>
+                </button>
               ))}
             </div>
             <button className="btn btn-gray" style={{ width: "100%", marginTop: 20 }} onClick={() => setModalPresenca(false)}>Fechar</button>

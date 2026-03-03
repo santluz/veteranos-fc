@@ -50,8 +50,13 @@ export default function App() {
   const [tipoAcesso, setTipoAcesso] = useState("visitante");
   const [erroLoginGrupo, setErroLoginGrupo] = useState("");
   const [telaLogin, setTelaLogin] = useState(true);
+  const [telaCadastro, setTelaCadastro] = useState(false);
+  const [cadastroForm, setCadastroForm] = useState({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
+  const [erroCadastro, setErroCadastro] = useState("");
+  const [okCadastro, setOkCadastro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMaster, setIsMaster] = useState(false);
   const [senha, setSenha] = useState("");
 
   // Dados do Firebase
@@ -103,6 +108,21 @@ export default function App() {
     const unsub = onSnapshot(doc(db, "grupos", grupoId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+        // Bloquear grupos não aprovados (exceto master)
+        if (data.status === "pendente" && !isMaster) {
+          setCarregando(false);
+          setGrupoId("");
+          setTelaLogin(true);
+          setErroLoginGrupo("⏳ Seu cadastro está aguardando aprovação. Aguarde o contato do administrador.");
+          return;
+        }
+        if (data.status === "bloqueado" && !isMaster) {
+          setCarregando(false);
+          setGrupoId("");
+          setTelaLogin(true);
+          setErroLoginGrupo("🚫 Este grupo está bloqueado. Entre em contato com o administrador.");
+          return;
+        }
         if (data.senhaAdmin) setSenhaAdmin(data.senhaAdmin);
         if (data.nomeGrupo) setNomeGrupoState(data.nomeGrupo);
         if (data.configValores) setConfigValoresState(data.configValores);
@@ -111,16 +131,12 @@ export default function App() {
         if (data.despesas) setDespesasState(data.despesas);
         if (data.presencas) setPresencasState(data.presencas);
       } else {
-        // Grupo novo — cria com dados padrão
-        setDoc(doc(db, "grupos", grupoId), {
-          nomeGrupo: grupoId.toUpperCase(),
-          senhaAdmin: "admin123",
-          configValores: { mensalista: "80,00", avulso: "30,00" },
-          metaMensal: "",
-          jogadores: [],
-          despesas: [],
-          presencas: {}
-        });
+        // Grupo não existe — bloquear entrada direta
+        setCarregando(false);
+        setGrupoId("");
+        setTelaLogin(true);
+        setErroLoginGrupo("❌ Grupo não encontrado. Solicite o cadastro primeiro.");
+        return;
       }
       setCarregando(false);
     });
@@ -170,19 +186,30 @@ export default function App() {
   const valorMensalista = parseDinheiro(configValores.mensalista);
   const valorAvulso = parseDinheiro(configValores.avulso);
 
+  const SENHA_MASTER = "SantluzMaster@2025";
+
   const entrarNoGrupo = () => {
-    const id = grupoIdInput.trim().toLowerCase().replace(/\s+/g, "_");
+    const id = grupoIdInput.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (!id) { setErroLoginGrupo("Digite o código do grupo."); return; }
     if (tipoAcesso === "admin" && !senhaInput) { setErroLoginGrupo("Digite a senha."); return; }
+    // Verificar senha master
+    if (tipoAcesso === "admin" && senhaInput === SENHA_MASTER) {
+      setIsMaster(true);
+      setIsAdmin(true);
+      setGrupoId(id);
+      setTelaLogin(false);
+      setSenha(senhaInput);
+      return;
+    }
+    setIsMaster(false);
     setGrupoId(id);
     setIsAdmin(tipoAcesso === "admin");
     setTelaLogin(false);
-    // Senha será validada após carregar dados do Firebase
     setSenha(senhaInput);
   };
 
   const validarSenhaAdmin = () => {
-    if (isAdmin && senhaAdmin && senha !== senhaAdmin) {
+    if (isAdmin && !isMaster && senhaAdmin && senha !== senhaAdmin) {
       setIsAdmin(false);
       setTelaLogin(true);
       setGrupoId("");
@@ -198,6 +225,37 @@ export default function App() {
   }, [carregando, senhaAdmin]);
 
 
+
+  const solicitarCadastro = async () => {
+    const { nomeGrupo: ng, responsavel, telefone, codigo } = cadastroForm;
+    if (!ng || !responsavel || !telefone || !codigo) { setErroCadastro("Preencha todos os campos."); return; }
+    const id = codigo.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    if (!id) { setErroCadastro("Código inválido. Use letras, números e underline."); return; }
+    try {
+      // Verificar se código já existe
+      const snap = await new Promise(resolve => {
+        const unsub = onSnapshot(doc(db, "grupos", id), s => { unsub(); resolve(s); });
+      });
+      if (snap.exists()) { setErroCadastro("Este código já está em uso. Escolha outro."); return; }
+      // Criar grupo com status pendente
+      await setDoc(doc(db, "grupos", id), {
+        nomeGrupo: ng.toUpperCase(),
+        responsavel,
+        telefone: maskTelefone(telefone),
+        senhaAdmin: "admin123",
+        status: "pendente",
+        dataCadastro: new Date().toISOString(),
+        configValores: { mensalista: "80,00", avulso: "30,00" },
+        metaMensal: "",
+        jogadores: [],
+        despesas: [],
+        presencas: {}
+      });
+      setOkCadastro("✅ Cadastro enviado com sucesso! Aguarde a aprovação do administrador.");
+      setErroCadastro("");
+      setCadastroForm({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
+    } catch(e) { setErroCadastro("Erro ao enviar cadastro. Tente novamente."); }
+  };
 
   const trocarSenha = () => {
     if (senhaAtual !== senhaAdmin) { setErroSenha("Senha atual incorreta."); setOkSenha(""); return; }
@@ -329,20 +387,17 @@ export default function App() {
       <style>{css}</style>
 
       {/* TELA INICIAL — escolha do grupo */}
-      {telaLogin && (
+      {telaLogin && !telaCadastro && (
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
             <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO DE GRUPOS</h1>
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Futebol Veterano</p>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
               <div>
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600, textAlign: "left" }}>CÓDIGO DO GRUPO</p>
                 <input className="input" placeholder="Ex: veteranos_fc, masters_fc..." value={grupoIdInput} onChange={e => { setGrupoIdInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
-                <p style={{ fontSize: 11, color: "#475569", marginTop: 4, textAlign: "left" }}>Use letras, números e underline. Ex: veteranos_fc</p>
               </div>
-
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setTipoAcesso("visitante")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "visitante" ? "#3b82f6" : "#1e2e50"}`, background: tipoAcesso === "visitante" ? "rgba(59,130,246,0.1)" : "#0d1525", color: tipoAcesso === "visitante" ? "#3b82f6" : "#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13 }}>
                   👁 Visitante
@@ -351,16 +406,51 @@ export default function App() {
                   👑 Admin
                 </button>
               </div>
-
               {tipoAcesso === "admin" && (
                 <input className="input" type="password" placeholder="Senha do administrador" value={senhaInput} onChange={e => { setSenhaInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
               )}
-
               {erroLoginGrupo && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroLoginGrupo}</p>}
             </div>
+            <button className="btn btn-blue" style={{ width: "100%", padding: "14px", marginBottom: 12 }} onClick={entrarNoGrupo}>Entrar</button>
+            <div style={{ borderTop: "1px solid #1e2e50", paddingTop: 16, marginTop: 4 }}>
+              <p style={{ color: "#64748b", fontSize: 12, marginBottom: 10 }}>Ainda não tem um grupo cadastrado?</p>
+              <button className="btn btn-gray" style={{ width: "100%", padding: "12px" }} onClick={() => { setTelaCadastro(true); setOkCadastro(""); setErroCadastro(""); }}>📋 Solicitar Cadastro de Novo Grupo</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <button className="btn btn-blue" style={{ width: "100%", padding: "14px" }} onClick={entrarNoGrupo}>Entrar</button>
-            <p style={{ color: "#475569", fontSize: 11, marginTop: 16 }}>Novo grupo? Digite um código novo e entre como Admin para criá-lo automaticamente.</p>
+      {/* TELA DE CADASTRO */}
+      {telaCadastro && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 4 }}>📋 SOLICITAR CADASTRO</h2>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Preencha os dados do seu grupo. Após análise você receberá o acesso.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>NOME DO GRUPO</p>
+                <input className="input" placeholder="Ex: Veteranos FC, Masters do Bairro..." value={cadastroForm.nomeGrupo} onChange={e => setCadastroForm({ ...cadastroForm, nomeGrupo: e.target.value })} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>NOME DO RESPONSÁVEL</p>
+                <input className="input" placeholder="Seu nome completo" value={cadastroForm.responsavel} onChange={e => setCadastroForm({ ...cadastroForm, responsavel: e.target.value })} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>TELEFONE / WHATSAPP</p>
+                <input className="input" placeholder="(21) 98988-5422" value={cadastroForm.telefone} onChange={e => setCadastroForm({ ...cadastroForm, telefone: maskTelefone(e.target.value) })} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>CÓDIGO DESEJADO PARA O GRUPO</p>
+                <input className="input" placeholder="Ex: veteranos_rj (só letras, números e _)" value={cadastroForm.codigo} onChange={e => setCadastroForm({ ...cadastroForm, codigo: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })} />
+                <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Este será o código de acesso ao sistema.</p>
+              </div>
+              {erroCadastro && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroCadastro}</p>}
+              {okCadastro && <p style={{ color: "#00d97e", fontSize: 13 }}>{okCadastro}</p>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button className="btn btn-green" style={{ flex: 1 }} onClick={solicitarCadastro}>Enviar Solicitação</button>
+              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => { setTelaCadastro(false); setOkCadastro(""); setErroCadastro(""); }}>Voltar</button>
+            </div>
           </div>
         </div>
       )}
@@ -543,21 +633,21 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span className={`tag ${isAdmin ? "tag-green" : "tag-yellow"}`}>{isAdmin ? "👑 ADMIN" : "👁 VISITANTE"}</span>
+          <span className={`tag ${isMaster ? "tag-purple" : isAdmin ? "tag-green" : "tag-yellow"}`}>{isMaster ? "🔑 MASTER" : isAdmin ? "👑 ADMIN" : "👁 VISITANTE"}</span>
           {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setNomeEdit(nomeGrupo); setModalNome(true); }}>✏️ Nome</button>}
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
           {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
-          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setTelaLogin(true); setGrupoId(""); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); }}>🔄 Trocar Grupo</button>
+          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setTelaLogin(true); setGrupoId(""); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); }}>🔄 Trocar Grupo</button>
         </div>
       </header>
 
       {/* NAV */}
       <nav style={{ padding: "16px 24px", display: "flex", gap: 8, borderBottom: "1px solid #1e2e50", background: "#0d1525", flexWrap: "wrap" }}>
-        {["dashboard","jogadores","financeiro","presenca"].map(a => (
+        {["dashboard","jogadores","financeiro","presenca", ...(isMaster ? ["master"] : [])].map(a => (
           <button key={a} className={`nav-tab ${aba===a?"active":""}`} onClick={() => setAba(a)}>
-            {a==="dashboard"?"📊 Dashboard":a==="jogadores"?"👥 Jogadores":a==="financeiro"?"💰 Financeiro":"📅 Presença"}
+            {a==="dashboard"?"📊 Dashboard":a==="jogadores"?"👥 Jogadores":a==="financeiro"?"💰 Financeiro":a==="presenca"?"📅 Presença":"🔑 Master"}
           </button>
         ))}
       </nav>
@@ -831,7 +921,113 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* PAINEL MASTER */}
+        {aba === "master" && isMaster && (
+          <MasterPanel db={db} grupoAtual={grupoId} />
+        )}
       </main>
+    </div>
+  );
+}
+
+function MasterPanel({ db, grupoAtual }) {
+  const [grupos, setGrupos] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    const { collection, onSnapshot: snap } = require("firebase/firestore");
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+    import("firebase/firestore").then(({ collection, onSnapshot: snapFn, query }) => {
+      const q = query(collection(db, "grupos"));
+      const unsub = snapFn(q, (qs) => {
+        const lista = [];
+        qs.forEach(d => lista.push({ id: d.id, ...d.data() }));
+        setGrupos(lista.sort((a,b) => (a.dataCadastro||"").localeCompare(b.dataCadastro||"")));
+        setCarregando(false);
+      });
+      return () => unsub();
+    });
+  }, [db]);
+
+  const aprovar = async (id) => {
+    const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
+    await setDocFn(docFn(db, "grupos", id), { status: "ativo" }, { merge: true });
+  };
+  const bloquear = async (id) => {
+    const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
+    await setDocFn(docFn(db, "grupos", id), { status: "bloqueado" }, { merge: true });
+  };
+  const excluir = async (id) => {
+    if (!confirm(`Excluir grupo ${id}? Esta ação não pode ser desfeita!`)) return;
+    const { doc: docFn, deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(docFn(db, "grupos", id));
+  };
+
+  const statusTag = (s) => {
+    if (s === "pendente") return <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:20, fontSize:12, fontWeight:700, background:"rgba(255,186,0,0.15)", color:"#ffba00" }}>⏳ Pendente</span>;
+    if (s === "bloqueado") return <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:20, fontSize:12, fontWeight:700, background:"rgba(255,71,87,0.15)", color:"#ff4757" }}>🚫 Bloqueado</span>;
+    return <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:20, fontSize:12, fontWeight:700, background:"rgba(0,217,126,0.15)", color:"#00d97e" }}>✅ Ativo</span>;
+  };
+
+  if (carregando) return <p style={{ color:"#64748b" }}>Carregando grupos...</p>;
+
+  const pendentes = grupos.filter(g => g.status === "pendente");
+  const ativos = grupos.filter(g => g.status !== "pendente");
+
+  return (
+    <div>
+      <h2 style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:28, fontWeight:900, marginBottom:8 }}>🔑 PAINEL MASTER</h2>
+      <p style={{ color:"#64748b", fontSize:13, marginBottom:24 }}>Grupo atual: <strong style={{color:"#3b82f6"}}>{grupoAtual}</strong> · Total de grupos: {grupos.length}</p>
+
+      {pendentes.length > 0 && (
+        <div style={{ background:"rgba(255,186,0,0.07)", border:"1px solid rgba(255,186,0,0.3)", borderRadius:16, padding:20, marginBottom:20 }}>
+          <h3 style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:20, fontWeight:900, marginBottom:16, color:"#ffba00" }}>⏳ AGUARDANDO APROVAÇÃO ({pendentes.length})</h3>
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {pendentes.map(g => (
+              <div key={g.id} style={{ background:"#0d1525", borderRadius:12, padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+                <div>
+                  <p style={{ fontWeight:700, fontSize:16 }}>{g.nomeGrupo || g.id}</p>
+                  <p style={{ fontSize:12, color:"#94a3b8" }}>Código: <strong>{g.id}</strong></p>
+                  {g.responsavel && <p style={{ fontSize:12, color:"#94a3b8" }}>Responsável: {g.responsavel}</p>}
+                  {g.telefone && <p style={{ fontSize:12, color:"#94a3b8" }}>📱 {g.telefone}</p>}
+                  {g.dataCadastro && <p style={{ fontSize:11, color:"#475569" }}>Solicitado em: {new Date(g.dataCadastro).toLocaleDateString("pt-BR")}</p>}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => aprovar(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"8px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>✅ Aprovar</button>
+                  <button onClick={() => excluir(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #ff4757, #cc2030)", color:"#fff", padding:"8px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>🗑 Recusar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ background:"linear-gradient(135deg, #111827, #1a2540)", border:"1px solid #1e2e50", borderRadius:16, padding:20 }}>
+        <h3 style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:20, fontWeight:900, marginBottom:16 }}>TODOS OS GRUPOS ({ativos.length})</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {ativos.map(g => (
+            <div key={g.id} style={{ background:"#0d1525", borderRadius:12, padding:"14px 18px", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+              <div>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                  <p style={{ fontWeight:700 }}>{g.nomeGrupo || g.id}</p>
+                  {statusTag(g.status)}
+                </div>
+                <p style={{ fontSize:12, color:"#94a3b8" }}>Código: <strong>{g.id}</strong> · {g.jogadores?.length || 0} jogadores</p>
+                {g.responsavel && <p style={{ fontSize:12, color:"#64748b" }}>{g.responsavel} {g.telefone ? `· ${g.telefone}` : ""}</p>}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                {g.status !== "ativo" && <button onClick={() => aprovar(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>✅ Ativar</button>}
+                {g.status !== "bloqueado" && <button onClick={() => bloquear(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #f59e0b, #d97706)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🚫 Bloquear</button>}
+                <button onClick={() => excluir(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #ff4757, #cc2030)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🗑</button>
+              </div>
+            </div>
+          ))}
+          {ativos.length === 0 && <p style={{ color:"#64748b", fontSize:14 }}>Nenhum grupo ativo ainda.</p>}
+        </div>
+      </div>
     </div>
   );
 }

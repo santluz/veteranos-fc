@@ -67,6 +67,7 @@ export default function App() {
   const [jogadores, setJogadoresState] = useState([]);
   const [despesas, setDespesasState] = useState([]);
   const [presencas, setPresencasState] = useState({});
+  const [avisos, setAvisosState] = useState([]);
 
   // Modais
   const [modalNome, setModalNome] = useState(false);
@@ -85,6 +86,9 @@ export default function App() {
   const [modalDespesa, setModalDespesa] = useState(false);
   const [modalHistorico, setModalHistorico] = useState(null);
   const [modalWhatsapp, setModalWhatsapp] = useState(false);
+  const [modalAviso, setModalAviso] = useState(false);
+  const [avisoTexto, setAvisoTexto] = useState("");
+  const [avisoUrgente, setAvisoUrgente] = useState(false);
   const [jogadorEdit, setJogadorEdit] = useState(null);
   const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
   const [diaAniv, setDiaAniv] = useState("");
@@ -130,6 +134,7 @@ export default function App() {
         if (data.jogadores) setJogadoresState(data.jogadores);
         if (data.despesas) setDespesasState(data.despesas);
         if (data.presencas) setPresencasState(data.presencas);
+        if (data.avisos) setAvisosState(data.avisos || []);
       } else {
         // Grupo não existe — bloquear entrada direta
         setCarregando(false);
@@ -178,6 +183,11 @@ export default function App() {
     const next = typeof val === "function" ? val(despesas) : val;
     setDespesasState(next); salvarFirebase("despesas", next);
   };
+  const setAvisos = (val) => {
+    const next = typeof val === "function" ? val(avisos) : val;
+    setAvisosState(next); salvarFirebase("avisos", next);
+  };
+
   const setPresencas = (val) => {
     const next = typeof val === "function" ? val(presencas) : val;
     const safe = next && typeof next === "object" ? next : {};
@@ -331,6 +341,31 @@ export default function App() {
     setPresencas({ ...presencasAtual, [dataPresenca]: nova });
   };
   const presencasData = (presencas && Array.isArray(presencas[dataPresenca])) ? presencas[dataPresenca] : [];
+
+  const gerarTextoAviso = () => {
+    const emoji = avisoUrgente ? "🚨" : "📢";
+    const urgencia = avisoUrgente ? "*URGENTE* " : "";
+    return `${emoji} *${nomeGrupo}* — ${urgencia}Comunicado
+
+${avisoTexto}
+
+_Enviado pela gestão do grupo_ ⚽`;
+  };
+
+  const publicarAviso = () => {
+    if (!avisoTexto.trim()) return;
+    const novo = {
+      id: Date.now(),
+      texto: avisoTexto,
+      urgente: avisoUrgente,
+      data: new Date().toISOString(),
+      lidos: []
+    };
+    setAvisos([novo, ...avisos]);
+    setAvisoTexto("");
+    setAvisoUrgente(false);
+    setModalAviso(false);
+  };
 
   const gerarTextoWhatsapp = () => {
     if (inadimplentes.length === 0) return `✅ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nTodos os mensalistas estão em dia! 👏`;
@@ -551,6 +586,39 @@ export default function App() {
         </div>
       )}
 
+      {/* MODAL AVISO */}
+      {modalAviso && (
+        <div className="overlay">
+          <div className="modal">
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>📢 NOVO COMUNICADO</h2>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>O comunicado ficará visível para todos ao entrar no sistema e você pode gerar o texto para o WhatsApp.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <textarea className="input" placeholder="Digite o comunicado aqui..." value={avisoTexto} onChange={e => setAvisoTexto(e.target.value)} style={{ minHeight: 120 }} />
+              <div onClick={() => setAvisoUrgente(!avisoUrgente)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, cursor: "pointer", background: avisoUrgente ? "rgba(255,71,87,0.08)" : "#0d1525", border: `2px solid ${avisoUrgente ? "#ff4757" : "#1e2e50"}` }}>
+                <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${avisoUrgente ? "#ff4757" : "#2a3a5c"}`, background: avisoUrgente ? "#ff4757" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {avisoUrgente && <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>✓</span>}
+                </div>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 14 }}>🚨 Marcar como URGENTE</p>
+                  <p style={{ fontSize: 12, color: "#64748b" }}>Aparece em destaque vermelho para todos</p>
+                </div>
+              </div>
+              {avisoTexto && (
+                <div style={{ background: "#0d1525", borderRadius: 10, padding: 14 }}>
+                  <p style={{ fontSize: 11, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>PRÉVIA DO WHATSAPP:</p>
+                  <p style={{ fontSize: 13, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{gerarTextoAviso()}</p>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button className="btn btn-green" style={{ flex: 1 }} onClick={publicarAviso}>📌 Publicar</button>
+              <button className="btn btn-green" style={{ flex: 1, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => { if(avisoTexto.trim()) { navigator.clipboard.writeText(gerarTextoAviso()); alert("Copiado para WhatsApp!"); } }}>💬 Copiar WhatsApp</button>
+              <button className="btn btn-gray" onClick={() => setModalAviso(false)}>✕</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL NOME */}
       {modalNome && (
         <div className="overlay">
@@ -638,6 +706,7 @@ export default function App() {
           {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setNomeEdit(nomeGrupo); setModalNome(true); }}>✏️ Nome</button>}
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
+          {isAdmin && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalAviso(true)}>📢 Aviso</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
           {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setTelaLogin(true); setGrupoId(""); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); }}>🔄 Trocar Grupo</button>
@@ -663,6 +732,27 @@ export default function App() {
         {aba === "dashboard" && (
           <div>
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 20 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
+
+            {/* Avisos */}
+            {avisos.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                {avisos.slice(0, 3).map(a => (
+                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "16px 20px", borderRadius: 12, marginBottom: 10, background: a.urgente ? "rgba(255,71,87,0.08)" : "rgba(59,130,246,0.08)", border: `1px solid ${a.urgente ? "rgba(255,71,87,0.3)" : "rgba(59,130,246,0.3)"}` }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 18 }}>{a.urgente ? "🚨" : "📢"}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: a.urgente ? "#ff4757" : "#3b82f6" }}>{a.urgente ? "URGENTE" : "COMUNICADO"}</span>
+                        <span style={{ fontSize: 11, color: "#475569" }}>{new Date(a.data).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                      <p style={{ fontSize: 14, color: "#e8ecf3", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{a.texto}</p>
+                    </div>
+                    {isAdmin && (
+                      <button onClick={() => setAvisos(avisos.filter(x => x.id !== a.id))} style={{ cursor: "pointer", border: "none", background: "transparent", color: "#475569", fontSize: 18, padding: "0 0 0 12px", lineHeight: 1 }}>✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
               <div className="stat-card" style={{ borderLeftColor: "#00d97e" }}>
                 <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>RECEITA DO MÊS</p>

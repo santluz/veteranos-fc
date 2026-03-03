@@ -177,7 +177,6 @@ export default function App() {
     setGrupoId(id);
     setIsAdmin(tipoAcesso === "admin");
     setTelaLogin(false);
-    setLoginModal(false);
     // Senha será validada após carregar dados do Firebase
     setSenha(senhaInput);
   };

@@ -77,7 +77,6 @@ export default function App() {
   const [modalJogador, setModalJogador] = useState(false);
   const [modalDespesa, setModalDespesa] = useState(false);
   const [modalHistorico, setModalHistorico] = useState(null);
-  const [modalPresenca, setModalPresenca] = useState(false);
   const [modalWhatsapp, setModalWhatsapp] = useState(false);
   const [jogadorEdit, setJogadorEdit] = useState(null);
   const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
@@ -230,15 +229,10 @@ export default function App() {
   const getPagamento = (j) => j.pagamentos.find(p => p.mes === mesFiltro);
 
   const togglePresenca = (jogadorId) => {
-    setTimeout(() => {
-      try {
-        const presencasAtual = presencas && typeof presencas === "object" ? presencas : {};
-        const lista = Array.isArray(presencasAtual[dataPresenca]) ? presencasAtual[dataPresenca] : [];
-        const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
-        const atualizado = { ...presencasAtual, [dataPresenca]: nova };
-        setPresencas(atualizado);
-      } catch(e) { console.error("Erro presenca:", e); }
-    }, 0);
+    const presencasAtual = presencas && typeof presencas === "object" ? { ...presencas } : {};
+    const lista = Array.isArray(presencasAtual[dataPresenca]) ? [...presencasAtual[dataPresenca]] : [];
+    const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
+    setPresencas({ ...presencasAtual, [dataPresenca]: nova });
   };
   const presencasData = (presencas && Array.isArray(presencas[dataPresenca])) ? presencas[dataPresenca] : [];
 
@@ -395,31 +389,6 @@ export default function App() {
       )}
 
       {/* MODAL PRESENÇA */}
-      {modalPresenca && (
-        <div className="overlay">
-          <div className="modal">
-            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 16 }}>📅 REGISTRAR PRESENÇA</h2>
-            <div style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>DATA DO JOGO</p>
-              <input className="input" type="date" value={dataPresenca} onChange={e => setDataPresenca(e.target.value)} />
-            </div>
-            <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 10, fontWeight: 600 }}>PRESENTES ({presencasData.length}/{jogadores.filter(j=>j.status==="ativo").length})</p>
-            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-              {jogadores.filter(j => j.status === "ativo").map(j => (
-                <button key={j.id} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePresenca(j.id); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: presencasData.includes(j.id) ? "rgba(0,217,126,0.08)" : "transparent", border: `1px solid ${presencasData.includes(j.id) ? "rgba(0,217,126,0.3)" : "transparent"}`, width: "100%", textAlign: "left", fontFamily: "'Barlow', sans-serif" }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${presencasData.includes(j.id) ? "#00d97e" : "#2a3a5c"}`, background: presencasData.includes(j.id) ? "#00d97e" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {presencasData.includes(j.id) && <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>}
-                  </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#e8ecf3" }}>{j.nome}</span>
-                  <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{ fontSize: 11, marginLeft: "auto" }}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
-                </button>
-              ))}
-            </div>
-            <button className="btn btn-gray" style={{ width: "100%", marginTop: 20 }} onClick={() => setModalPresenca(false)}>Fechar</button>
-          </div>
-        </div>
-      )}
-
       {/* MODAL WHATSAPP */}
       {modalWhatsapp && (
         <div className="overlay">
@@ -735,10 +704,44 @@ export default function App() {
         {/* PRESENÇA */}
         {aba === "presenca" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>📅 LISTA DE PRESENÇA</h2>
-              {isAdmin && <button className="btn btn-green" onClick={() => setModalPresenca(true)}>+ Registrar Presença</button>}
-            </div>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 20 }}>📅 LISTA DE PRESENÇA</h2>
+
+            {/* Seletor de data + lista inline */}
+            {isAdmin && (
+              <div className="card" style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4, fontWeight: 600 }}>DATA DO JOGO</p>
+                    <input className="input" type="date" style={{ width: "auto" }} value={dataPresenca} onChange={e => setDataPresenca(e.target.value)} />
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <span className="tag tag-blue">{presencasData.length} / {jogadores.filter(j=>j.status==="ativo").length} presentes</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12, fontWeight: 600 }}>CLIQUE PARA MARCAR PRESENÇA:</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                  {jogadores.filter(j => j.status === "ativo").map(j => {
+                    const presente = presencasData.includes(j.id);
+                    return (
+                      <div
+                        key={j.id}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, cursor: "pointer", background: presente ? "rgba(0,217,126,0.12)" : "#0d1525", border: `2px solid ${presente ? "#00d97e" : "#1e2e50"}`, transition: "all 0.2s", userSelect: "none" }}
+                        onClick={() => togglePresenca(j.id)}
+                      >
+                        <span style={{ fontSize: 18 }}>{presente ? "✅" : "⬜"}</span>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: presente ? "#00d97e" : "#e8ecf3" }}>{j.nome}</p>
+                          <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`} style={{ fontSize: 10 }}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {jogadores.filter(j=>j.status==="ativo").length === 0 && <p style={{color:"#64748b",fontSize:14}}>Nenhum jogador ativo cadastrado.</p>}
+              </div>
+            )}
+
+            {/* Frequência do mês */}
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>FREQUÊNCIA — {nomeMes(mesFiltro)}</h3>
               {(() => {
@@ -748,11 +751,11 @@ export default function App() {
                   <div>
                     <p style={{color:"#64748b",fontSize:13,marginBottom:14}}>{jogosDoMes.length} jogo(s) registrado(s)</p>
                     {jogadores.filter(j=>j.status==="ativo").sort((a,b)=>{
-                      const fa=jogosDoMes.filter(d=>(presencas[d]||[]).includes(a.id)).length;
-                      const fb=jogosDoMes.filter(d=>(presencas[d]||[]).includes(b.id)).length;
+                      const fa=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(a.id)).length;
+                      const fb=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(b.id)).length;
                       return fb-fa;
                     }).map(j=>{
-                      const presentes=jogosDoMes.filter(d=>(presencas[d]||[]).includes(j.id)).length;
+                      const presentes=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(j.id)).length;
                       const pct=jogosDoMes.length?(presentes/jogosDoMes.length)*100:0;
                       return(<div key={j.id} style={{marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:14,fontWeight:600}}>{j.nome}</span><span style={{fontSize:13,color:pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757",fontWeight:700}}>{presentes}/{jogosDoMes.length} ({pct.toFixed(0)}%)</span></div><div className="progress-bar"><div className="progress-fill" style={{width:`${pct}%`,background:pct>=75?"#00d97e":pct>=50?"#ffba00":"#ff4757"}}/></div></div>);
                     })}
@@ -760,11 +763,13 @@ export default function App() {
                 );
               })()}
             </div>
+
+            {/* Histórico */}
             <div className="card">
               <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>HISTÓRICO DE JOGOS</h3>
               {Object.keys(presencas || {}).filter(d=>d.startsWith(mesFiltro)).sort().reverse().map(data=>{
-                const lista=presencas[data]||[];
-                return(<div key={data} style={{padding:"14px 0",borderBottom:"1px solid #1a2540"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><p style={{fontWeight:700}}>{data.split("-").reverse().join("/")}</p><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="tag tag-blue">{lista.length} presentes</span>{isAdmin&&<button className="btn btn-red" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>{if(confirm("Remover este jogo?")){const np={...presencas};delete np[data];setPresencas(np);}}}>🗑</button>}</div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{jogadores.filter(j=>lista.includes(j.id)).map(j=><span key={j.id} className="tag tag-green" style={{fontSize:11}}>{j.nome}</span>)}</div></div>);
+                const lista=(presencas||{})[data]||[];
+                return(<div key={data} style={{padding:"14px 0",borderBottom:"1px solid #1a2540"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><p style={{fontWeight:700}}>{data.split("-").reverse().join("/")}</p><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="tag tag-blue">{lista.length} presentes</span>{isAdmin&&<button className="btn btn-red" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>{if(confirm("Remover este jogo?")){const np={...(presencas||{})};delete np[data];setPresencas(np);}}}>🗑</button>}</div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{jogadores.filter(j=>lista.includes(j.id)).map(j=><span key={j.id} className="tag tag-green" style={{fontSize:11}}>{j.nome}</span>)}</div></div>);
               })}
               {Object.keys(presencas || {}).filter(d=>d.startsWith(mesFiltro)).length===0&&<p style={{color:"#64748b",fontSize:14}}>Nenhum jogo registrado neste mês.</p>}
             </div>

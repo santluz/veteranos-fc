@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
@@ -15,6 +15,14 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
+
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: false }; }
+  componentDidCatch(error, info) { console.error("App error:", error, info); }
+  render() { return this.props.children; }
+}
 
 function maskTelefone(v) {
   v = v.replace(/\D/g, "").slice(0, 11);
@@ -222,13 +230,15 @@ export default function App() {
   const getPagamento = (j) => j.pagamentos.find(p => p.mes === mesFiltro);
 
   const togglePresenca = (jogadorId) => {
-    try {
-      const presencasAtual = presencas && typeof presencas === "object" ? presencas : {};
-      const lista = Array.isArray(presencasAtual[dataPresenca]) ? presencasAtual[dataPresenca] : [];
-      const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
-      const atualizado = { ...presencasAtual, [dataPresenca]: nova };
-      setPresencas(atualizado);
-    } catch(e) { console.error("Erro presenca:", e); }
+    setTimeout(() => {
+      try {
+        const presencasAtual = presencas && typeof presencas === "object" ? presencas : {};
+        const lista = Array.isArray(presencasAtual[dataPresenca]) ? presencasAtual[dataPresenca] : [];
+        const nova = lista.includes(jogadorId) ? lista.filter(id => id !== jogadorId) : [...lista, jogadorId];
+        const atualizado = { ...presencasAtual, [dataPresenca]: nova };
+        setPresencas(atualizado);
+      } catch(e) { console.error("Erro presenca:", e); }
+    }, 0);
   };
   const presencasData = (presencas && Array.isArray(presencas[dataPresenca])) ? presencas[dataPresenca] : [];
 
@@ -274,11 +284,13 @@ export default function App() {
   `;
 
   if (carregando) return (
-    <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
-      <style>{css}</style>
-      <span style={{ fontSize: 48 }}>⚽</span>
-      <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: "#3b82f6" }}>Carregando...</p>
-    </div>
+    <ErrorBoundary>
+      <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+        <style>{css}</style>
+        <span style={{ fontSize: 48 }}>⚽</span>
+        <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: "#3b82f6" }}>Carregando...</p>
+      </div>
+    </ErrorBoundary>
   );
 
   return (

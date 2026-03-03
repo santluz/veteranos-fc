@@ -43,10 +43,14 @@ function nomeMes(mesStr) {
   return `${nomes[parseInt(mes)-1]} ${ano}`;
 }
 
-const GRUPO_ID = "grupo_principal";
-
 export default function App() {
-  const [carregando, setCarregando] = useState(true);
+  const [grupoId, setGrupoId] = useState("");
+  const [grupoIdInput, setGrupoIdInput] = useState("");
+  const [senhaInput, setSenhaInput] = useState("");
+  const [tipoAcesso, setTipoAcesso] = useState("visitante");
+  const [erroLoginGrupo, setErroLoginGrupo] = useState("");
+  const [telaLogin, setTelaLogin] = useState(true);
+  const [carregando, setCarregando] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginModal, setLoginModal] = useState(true);
   const [senha, setSenha] = useState("");
@@ -94,9 +98,11 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
 
-  // Carregar dados do Firebase em tempo real
+  // Carregar dados do Firebase em tempo real quando grupoId mudar
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "grupos", GRUPO_ID), (snap) => {
+    if (!grupoId) return;
+    setCarregando(true);
+    const unsub = onSnapshot(doc(db, "grupos", grupoId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         if (data.senhaAdmin) setSenhaAdmin(data.senhaAdmin);
@@ -106,11 +112,22 @@ export default function App() {
         if (data.jogadores) setJogadoresState(data.jogadores);
         if (data.despesas) setDespesasState(data.despesas);
         if (data.presencas) setPresencasState(data.presencas);
+      } else {
+        // Grupo novo — cria com dados padrão
+        setDoc(doc(db, "grupos", grupoId), {
+          nomeGrupo: grupoId.toUpperCase(),
+          senhaAdmin: "admin123",
+          configValores: { mensalista: "80,00", avulso: "30,00" },
+          metaMensal: "",
+          jogadores: [],
+          despesas: [],
+          presencas: {}
+        });
       }
       setCarregando(false);
     });
     return () => unsub();
-  }, []);
+  }, [grupoId]);
   // PWA install prompt
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); };
@@ -130,7 +147,7 @@ export default function App() {
   const salvarFirebase = async (campo, valor) => {
     setSalvando(true);
     try {
-      await setDoc(doc(db, "grupos", GRUPO_ID), { [campo]: valor }, { merge: true });
+      await setDoc(doc(db, "grupos", grupoId), { [campo]: valor }, { merge: true });
     } catch (e) { console.error(e); }
     setSalvando(false);
   };
@@ -154,6 +171,34 @@ export default function App() {
 
   const valorMensalista = parseDinheiro(configValores.mensalista);
   const valorAvulso = parseDinheiro(configValores.avulso);
+
+  const entrarNoGrupo = () => {
+    const id = grupoIdInput.trim().toLowerCase().replace(/\s+/g, "_");
+    if (!id) { setErroLoginGrupo("Digite o código do grupo."); return; }
+    if (tipoAcesso === "admin" && !senhaInput) { setErroLoginGrupo("Digite a senha."); return; }
+    setGrupoId(id);
+    setIsAdmin(tipoAcesso === "admin");
+    setTelaLogin(false);
+    setLoginModal(false);
+    // Senha será validada após carregar dados do Firebase
+    setSenha(senhaInput);
+  };
+
+  const validarSenhaAdmin = () => {
+    if (isAdmin && senhaAdmin && senha !== senhaAdmin) {
+      setIsAdmin(false);
+      setTelaLogin(true);
+      setGrupoId("");
+      setErroLoginGrupo("Senha incorreta. Tente novamente.");
+    }
+  };
+
+  useEffect(() => {
+    if (grupoId && !carregando && isAdmin && senhaAdmin) {
+      validarSenhaAdmin();
+    }
+  // eslint-disable-next-line
+  }, [carregando, senhaAdmin]);
 
   const entrar = (admin) => {
     if (admin) {
@@ -291,20 +336,39 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3" }}>
       <style>{css}</style>
 
-      {/* LOGIN */}
-      {loginModal && (
+      {/* TELA INICIAL — escolha do grupo */}
+      {telaLogin && (
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
-            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
-            <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Gestão do Grupo</p>
-            <div style={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 12, padding: 20, marginBottom: 16 }}>
-              <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12, fontWeight: 600 }}>ACESSO ADMINISTRADOR</p>
-              <input className="input" type="password" placeholder="Senha do administrador" value={senha} onChange={e => { setSenha(e.target.value); setErroLogin(""); }} onKeyDown={e => e.key === "Enter" && entrar(true)} style={{ marginBottom: 10 }} />
-              {erroLogin && <p style={{ color: "#ff4757", fontSize: 12, marginBottom: 8 }}>{erroLogin}</p>}
-              <button className="btn btn-blue" style={{ width: "100%" }} onClick={() => entrar(true)}>Entrar como Admin</button>
+            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO DE GRUPOS</h1>
+            <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Futebol Veterano</p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600, textAlign: "left" }}>CÓDIGO DO GRUPO</p>
+                <input className="input" placeholder="Ex: veteranos_fc, masters_fc..." value={grupoIdInput} onChange={e => { setGrupoIdInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
+                <p style={{ fontSize: 11, color: "#475569", marginTop: 4, textAlign: "left" }}>Use letras, números e underline. Ex: veteranos_fc</p>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setTipoAcesso("visitante")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "visitante" ? "#3b82f6" : "#1e2e50"}`, background: tipoAcesso === "visitante" ? "rgba(59,130,246,0.1)" : "#0d1525", color: tipoAcesso === "visitante" ? "#3b82f6" : "#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13 }}>
+                  👁 Visitante
+                </button>
+                <button onClick={() => setTipoAcesso("admin")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "admin" ? "#00d97e" : "#1e2e50"}`, background: tipoAcesso === "admin" ? "rgba(0,217,126,0.1)" : "#0d1525", color: tipoAcesso === "admin" ? "#00d97e" : "#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13 }}>
+                  👑 Admin
+                </button>
+              </div>
+
+              {tipoAcesso === "admin" && (
+                <input className="input" type="password" placeholder="Senha do administrador" value={senhaInput} onChange={e => { setSenhaInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
+              )}
+
+              {erroLoginGrupo && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroLoginGrupo}</p>}
             </div>
-            <button className="btn btn-gray" style={{ width: "100%", padding: "12px" }} onClick={() => entrar(false)}>Entrar como Visitante</button>
+
+            <button className="btn btn-blue" style={{ width: "100%", padding: "14px" }} onClick={entrarNoGrupo}>Entrar</button>
+            <p style={{ color: "#475569", fontSize: 11, marginTop: 16 }}>Novo grupo? Digite um código novo e entre como Admin para criá-lo automaticamente.</p>
           </div>
         </div>
       )}
@@ -493,7 +557,7 @@ export default function App() {
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
           {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
-          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLoginModal(true); setSenha(""); setErroLogin(""); }}>Trocar Acesso</button>
+          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setTelaLogin(true); setGrupoId(""); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); }}>🔄 Trocar Grupo</button>
         </div>
       </header>
 

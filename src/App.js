@@ -112,15 +112,17 @@ export default function App() {
     const unsub = onSnapshot(doc(db, "grupos", grupoId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+        // Grupos sem status são considerados ativos (grupos antigos)
+        const status = data.status || "ativo";
         // Bloquear grupos não aprovados (exceto master)
-        if (data.status === "pendente" && !isMaster) {
+        if (status === "pendente" && !isMaster) {
           setCarregando(false);
           setGrupoId("");
           setTelaLogin(true);
           setErroLoginGrupo("⏳ Seu cadastro está aguardando aprovação. Aguarde o contato do administrador.");
           return;
         }
-        if (data.status === "bloqueado" && !isMaster) {
+        if (status === "bloqueado" && !isMaster) {
           setCarregando(false);
           setGrupoId("");
           setTelaLogin(true);

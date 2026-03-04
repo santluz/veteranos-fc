@@ -51,6 +51,9 @@ export default function App() {
   const [erroLoginGrupo, setErroLoginGrupo] = useState("");
   const [telaLogin, setTelaLogin] = useState(true);
   const [telaCadastro, setTelaCadastro] = useState(false);
+  const [telaGruposMaster, setTelaGruposMaster] = useState(false);
+  const [gruposLista, setGruposLista] = useState([]);
+  const [carregandoGrupos, setCarregandoGrupos] = useState(false);
   const [cadastroForm, setCadastroForm] = useState({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
   const [erroCadastro, setErroCadastro] = useState("");
   const [okCadastro, setOkCadastro] = useState("");
@@ -205,17 +208,31 @@ export default function App() {
 
   const SENHA_MASTER = "SantluzMaster@2025";
 
+  const carregarGrupos = async () => {
+    setCarregandoGrupos(true);
+    try {
+      const { collection, getDocs } = await import("firebase/firestore");
+      const snap = await getDocs(collection(db, "grupos"));
+      const lista = [];
+      snap.forEach(d => lista.push({ id: d.id, ...d.data() }));
+      lista.sort((a, b) => (a.nomeGrupo || a.id).localeCompare(b.nomeGrupo || b.id));
+      setGruposLista(lista);
+    } catch(e) { console.error(e); }
+    setCarregandoGrupos(false);
+  };
+
   const entrarNoGrupo = () => {
     const id = grupoIdInput.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (!id) { setErroLoginGrupo("Digite o código do grupo."); return; }
     if (tipoAcesso === "admin" && !senhaInput) { setErroLoginGrupo("Digite a senha."); return; }
-    // Verificar senha master
+    // Verificar senha master — mostrar lista de grupos
     if (tipoAcesso === "admin" && senhaInput === SENHA_MASTER) {
       setIsMaster(true);
       setIsAdmin(true);
-      setGrupoId(id);
-      setTelaLogin(false);
       setSenha(senhaInput);
+      setTelaLogin(false);
+      setTelaGruposMaster(true);
+      carregarGrupos();
       return;
     }
     setIsMaster(false);
@@ -223,6 +240,11 @@ export default function App() {
     setIsAdmin(tipoAcesso === "admin");
     setTelaLogin(false);
     setSenha(senhaInput);
+  };
+
+  const entrarGrupoMaster = (id) => {
+    setGrupoId(id);
+    setTelaGruposMaster(false);
   };
 
   const validarSenhaAdmin = () => {
@@ -446,6 +468,49 @@ _Enviado pela gestão do grupo_ ⚽`;
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3" }}>
       <style>{css}</style>
+
+      {/* TELA MASTER — selecionar grupo */}
+      {telaGruposMaster && (
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 560 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900 }}>🔑 SELECIONAR GRUPO</h2>
+                <p style={{ color: "#64748b", fontSize: 13 }}>Acesso Master — escolha o grupo</p>
+              </div>
+              <span className="tag tag-purple">MASTER</span>
+            </div>
+            {carregandoGrupos ? (
+              <p style={{ color: "#64748b", textAlign: "center", padding: 20 }}>Carregando grupos...</p>
+            ) : (
+              <div style={{ maxHeight: 420, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                {gruposLista.map(g => {
+                  const statusColor = g.status === "pendente" ? "#ffba00" : g.status === "bloqueado" ? "#ff4757" : "#00d97e";
+                  const statusLabel = g.status === "pendente" ? "⏳ Pendente" : g.status === "bloqueado" ? "🚫 Bloqueado" : "✅ Ativo";
+                  return (
+                    <div key={g.id} onClick={() => entrarGrupoMaster(g.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderRadius: 12, cursor: "pointer", background: "#0d1525", border: "1px solid #1e2e50", transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "#3b82f6"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "#1e2e50"}>
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: 15 }}>{g.nomeGrupo || g.id}</p>
+                        <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
+                          <span style={{ fontSize: 12, color: "#64748b" }}>@{g.id}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: statusColor }}>· {statusLabel}</span>
+                          <span style={{ fontSize: 11, color: "#475569" }}>· {g.jogadores?.length || 0} jogadores</span>
+                        </div>
+                        {g.responsavel && <p style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{g.responsavel} {g.telefone ? `· ${g.telefone}` : ""}</p>}
+                      </div>
+                      <span style={{ color: "#3b82f6", fontSize: 20 }}>›</span>
+                    </div>
+                  );
+                })}
+                {gruposLista.length === 0 && <p style={{ color: "#64748b", textAlign: "center", padding: 20 }}>Nenhum grupo encontrado.</p>}
+              </div>
+            )}
+            <button className="btn btn-gray" style={{ width: "100%", marginTop: 16 }} onClick={() => { setTelaGruposMaster(false); setTelaLogin(true); setIsMaster(false); setIsAdmin(false); setSenhaInput(""); setGrupoIdInput(""); }}>← Voltar ao Login</button>
+          </div>
+        </div>
+      )}
 
       {/* TELA INICIAL — escolha do grupo */}
       {telaLogin && !telaCadastro && (
@@ -746,7 +811,11 @@ _Enviado pela gestão do grupo_ ⚽`;
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalAviso(true)}>📢 Aviso</button>}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
           {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
-          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setTelaLogin(true); setGrupoId(""); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); }}>🔄 Trocar Grupo</button>
+          <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => {
+            setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); setGrupoId("");
+            if (isMaster) { setTelaGruposMaster(true); carregarGrupos(); }
+            else { setTelaLogin(true); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); }
+          }}>{isMaster ? "🔄 Trocar Grupo" : "🚪 Sair"}</button>
         </div>
       </header>
 

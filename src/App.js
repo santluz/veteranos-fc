@@ -106,6 +106,9 @@ export default function App() {
   });
   const [dataPresenca, setDataPresenca] = useState(() => new Date().toISOString().split("T")[0]);
   const [salvando, setSalvando] = useState(false);
+  const [plano, setPlanoState] = useState("degustacao");
+  const [dataExpiracao, setDataExpiracaoState] = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showSenhaLogin, setShowSenhaLogin] = useState(false);
@@ -145,6 +148,9 @@ export default function App() {
         if (data.despesas) setDespesasState(data.despesas);
         if (data.presencas) setPresencasState(data.presencas);
         if (data.avisos) setAvisosState(data.avisos || []);
+        setPlanoState(data.plano || "degustacao");
+        setDataExpiracaoState(data.dataExpiracao || null);
+        setLimiteJogadoresCustom(data.limiteJogadores || 10);
       } else {
         // Grupo não existe — bloquear entrada direta
         setCarregando(false);
@@ -216,6 +222,13 @@ export default function App() {
 
   const valorMensalista = parseDinheiro(configValores.mensalista);
   const valorAvulso = parseDinheiro(configValores.avulso);
+
+  const isFull = plano === "full" || isMaster;
+  const diasRestantes = dataExpiracao ? Math.max(0, Math.ceil((new Date(dataExpiracao) - new Date()) / (1000 * 60 * 60 * 24))) : null;
+  const expirado = dataExpiracao ? new Date() > new Date(dataExpiracao) : false;
+  const [limiteJogadoresCustom, setLimiteJogadoresCustom] = useState(10);
+  // Will be updated from Firebase
+  const limiteJogadores = isFull ? Infinity : limiteJogadoresCustom;
 
   const SENHA_MASTER = "SantluzMaster@2025";
 
@@ -349,6 +362,9 @@ export default function App() {
   const metaPct = metaValor > 0 ? Math.min((receitaMes / metaValor) * 100, 100) : 0;
 
   const salvarJogador = () => {
+    if (!jogadorEdit && !isFull && jogadores.filter(j => j.status === "ativo").length >= limiteJogadores) {
+      setShowUpgrade(true); return;
+    }
     if (!novoJogador.nome) return;
     const nascFormatado = (anoAniv && mesAniv && diaAniv) ? `${anoAniv}-${mesAniv.padStart(2,"0")}-${diaAniv.padStart(2,"0")}` : "";
     const jogadorFinal = { ...novoJogador, nascimento: nascFormatado };
@@ -1009,6 +1025,34 @@ ${jogosDoMes.length > 0 ? `
         </div>
       )}
 
+      {/* MODAL UPGRADE */}
+      {showUpgrade && (
+        <div className="overlay">
+          <div className="modal" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 56, marginBottom: 12 }}>⭐</div>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 8, color: "#ffba00" }}>PLANO FULL</h2>
+            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+              {expirado ? "Seu período de degustação encerrou." : `Você está no plano Degustação.`} Faça upgrade para desbloquear todos os recursos!
+            </p>
+            <div style={{ background: "#0d1525", borderRadius: 16, padding: 20, marginBottom: 20, textAlign: "left" }}>
+              <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: "#ffba00" }}>✨ PLANO FULL INCLUI:</p>
+              {[["👥","Jogadores ilimitados"],["📄","Exportar relatório PDF"],["📢","Comunicados e avisos"],["💬","Mensagens WhatsApp"],["📊","Dashboard completo"],["🎂","Aniversariantes"],["🔒","Sem limite de tempo"]].map(([ico, txt]) => (
+                <div key={txt} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 18 }}>{ico}</span>
+                  <span style={{ fontSize: 14, color: "#e8ecf3" }}>{txt}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "linear-gradient(135deg, rgba(255,186,0,0.1), rgba(255,186,0,0.05))", border: "1px solid rgba(255,186,0,0.3)", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 4 }}>Entre em contato para fazer o upgrade:</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#ffba00" }}>📱 (21) 98988-5422</p>
+              <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>WhatsApp ou ligue para Edson</p>
+            </div>
+            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setShowUpgrade(false)}>Fechar</button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL NOME */}
       {modalNome && (
         <div className="overlay">
@@ -1102,10 +1146,13 @@ ${jogosDoMes.length > 0 ? `
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span className={`tag ${isMaster ? "tag-purple" : isAdmin ? "tag-green" : "tag-yellow"}`}>{isMaster ? "🔑 MASTER" : isAdmin ? "👑 ADMIN" : "👁 VISITANTE"}</span>
+          {!isMaster && <span onClick={() => !isFull && setShowUpgrade(true)} style={{ display:"inline-block", padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, cursor: isFull ? "default" : "pointer", background: isFull ? "rgba(0,217,126,0.15)" : expirado ? "rgba(255,71,87,0.15)" : "rgba(255,186,0,0.15)", color: isFull ? "#00d97e" : expirado ? "#ff4757" : "#ffba00" }}>
+            {isFull ? "⭐ FULL" : expirado ? "❌ Expirado" : `🕐 Degustação${diasRestantes !== null ? ` · ${diasRestantes}d` : ""}`}
+          </span>}
           {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setNomeEdit(nomeGrupo); setModalNome(true); }}>✏️ Nome</button>}
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
-          {isAdmin && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalAviso(true)}>📢 Aviso</button>}
+          {isAdmin && (isFull ? <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalAviso(true)}>📢 Aviso</button> : <button className="btn btn-gray" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>📢 Aviso ⭐</button>)}
           {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={() => setModalSenha(true)}>🔐 Senha</button>}
           {showInstall && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={instalarApp}>📲 Instalar App</button>}
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => {
@@ -1136,8 +1183,23 @@ ${jogosDoMes.length > 0 ? `
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
-              {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>}
+              {isAdmin && (isFull ? <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button> : <button className="btn btn-blue" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>📄 Exportar PDF ⭐</button>)}
             </div>
+
+            {/* Banner expiração/degustação */}
+            {!isFull && !isMaster && isAdmin && (
+              <div onClick={() => setShowUpgrade(true)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderRadius: 12, marginBottom: 16, background: expirado ? "rgba(255,71,87,0.08)" : "rgba(255,186,0,0.08)", border: `1px solid ${expirado ? "rgba(255,71,87,0.3)" : "rgba(255,186,0,0.3)"}` }}>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: expirado ? "#ff4757" : "#ffba00" }}>
+                    {expirado ? "❌ Período de degustação encerrado" : `🕐 Degustação${diasRestantes !== null ? ` — ${diasRestantes} dias restantes` : ""}`}
+                  </p>
+                  <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    {expirado ? "Faça o upgrade para continuar usando o sistema." : `Limite: ${jogadores.filter(j=>j.status==="ativo").length}/${limiteJogadores} jogadores · Clique para ver o Plano Full`}
+                  </p>
+                </div>
+                <span style={{ color: "#ffba00", fontSize: 20 }}>›</span>
+              </div>
+            )}
 
             {/* Avisos */}
             {avisos.length > 0 && (
@@ -1274,7 +1336,7 @@ ${jogosDoMes.length > 0 ? `
             </div>
             <div className="card">
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 90px 100px 160px", gap: 8, padding: "8px 16px", marginBottom: 8 }}>
-                {["NOME","EMAIL","TELEFONE","TIPO","STATUS","AÇÕES"].map(h=><span key={h} style={{fontSize:11,fontWeight:700,color:"#475569"}}>{h}</span>)}
+                {["NOME","EMAIL","TELEFONE","TIPO","STATUS",""].map(h=><span key={h} style={{fontSize:11,fontWeight:700,color:"#475569"}}>{h}</span>)}
               </div>
               {jogadores.map(j => {
                 const pag = getPagamento(j);
@@ -1431,6 +1493,8 @@ ${jogosDoMes.length > 0 ? `
 function MasterPanel({ db, grupoAtual }) {
   const [grupos, setGrupos] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [editandoPlano, setEditandoPlano] = useState(null);
+  const [planoEdit, setPlanoEdit] = useState({ tipo: "degustacao", dias: 30, limiteJogadores: 10 });
 
   useEffect(() => {
     import("firebase/firestore").then(({ collection, onSnapshot: snapFn, query }) => {
@@ -1445,9 +1509,22 @@ function MasterPanel({ db, grupoAtual }) {
     });
   }, [db]);
 
+  const definirPlano = async (id, novoPlano, dias, limiteJog) => {
+    const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
+    const expiracao = dias ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString() : null;
+    await setDocFn(docFn(db, "grupos", id), {
+      plano: novoPlano,
+      dataExpiracao: expiracao,
+      limiteJogadores: novoPlano === "full" ? 9999 : (limiteJog || 10)
+    }, { merge: true });
+    setEditandoPlano(null);
+  };
+
   const aprovar = async (id, grupo) => {
     const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
-    await setDocFn(docFn(db, "grupos", id), { status: "ativo" }, { merge: true });
+    // Aprova com degustação de 30 dias por padrão
+    const expiracao = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await setDocFn(docFn(db, "grupos", id), { status: "ativo", plano: "degustacao", dataExpiracao: expiracao }, { merge: true });
     // Enviar email de boas-vindas para o solicitante
     if (grupo.emailResponsavel) {
       try {
@@ -1533,11 +1610,37 @@ function MasterPanel({ db, grupoAtual }) {
                 <p style={{ fontSize:12, color:"#94a3b8" }}>Código: <strong>{g.id}</strong> · {g.jogadores?.length || 0} jogadores</p>
                 {g.responsavel && <p style={{ fontSize:12, color:"#64748b" }}>{g.responsavel} {g.telefone ? `· ${g.telefone}` : ""}</p>}
               </div>
-              <div style={{ display:"flex", gap:8 }}>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                <button onClick={() => { setEditandoPlano(g.id); setPlanoEdit({ tipo: g.plano||"degustacao", dias: 30, limiteJogadores: g.limiteJogadores||10 }); }} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"rgba(59,130,246,0.15)", color:"#3b82f6", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>⚙️ Plano</button>
                 {g.status !== "ativo" && <button onClick={() => aprovar(g.id, g)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>✅ Ativar</button>}
                 {g.status !== "bloqueado" && <button onClick={() => bloquear(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #f59e0b, #d97706)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🚫 Bloquear</button>}
                 <button onClick={() => excluir(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #ff4757, #cc2030)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🗑</button>
               </div>
+              {editandoPlano === g.id && (
+                <div style={{ marginTop:12, background:"#0a0f1e", border:"1px solid #1e2e50", borderRadius:12, padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+                  <p style={{ fontWeight:700, fontSize:13, color:"#94a3b8" }}>⚙️ CONFIGURAR PLANO</p>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => setPlanoEdit({...planoEdit, tipo:"degustacao"})} style={{ flex:1, cursor:"pointer", border:`2px solid ${planoEdit.tipo==="degustacao"?"#ffba00":"#1e2e50"}`, borderRadius:8, background: planoEdit.tipo==="degustacao"?"rgba(255,186,0,0.1)":"transparent", color: planoEdit.tipo==="degustacao"?"#ffba00":"#64748b", padding:"8px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>🕐 Degustação</button>
+                    <button onClick={() => setPlanoEdit({...planoEdit, tipo:"full"})} style={{ flex:1, cursor:"pointer", border:`2px solid ${planoEdit.tipo==="full"?"#00d97e":"#1e2e50"}`, borderRadius:8, background: planoEdit.tipo==="full"?"rgba(0,217,126,0.1)":"transparent", color: planoEdit.tipo==="full"?"#00d97e":"#64748b", padding:"8px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>⭐ Full</button>
+                  </div>
+                  {planoEdit.tipo === "degustacao" && (
+                    <div style={{ display:"flex", gap:10 }}>
+                      <div style={{ flex:1 }}>
+                        <p style={{ fontSize:11, color:"#64748b", marginBottom:4 }}>DIAS DE ACESSO</p>
+                        <input type="number" min="1" max="365" value={planoEdit.dias} onChange={e => setPlanoEdit({...planoEdit, dias: parseInt(e.target.value)||30})} style={{ width:"100%", padding:"8px 12px", borderRadius:8, background:"#0d1525", border:"1px solid #1e2e50", color:"#e8ecf3", fontFamily:"'Barlow', sans-serif", fontSize:14 }} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <p style={{ fontSize:11, color:"#64748b", marginBottom:4 }}>LIMITE JOGADORES</p>
+                        <input type="number" min="1" max="100" value={planoEdit.limiteJogadores} onChange={e => setPlanoEdit({...planoEdit, limiteJogadores: parseInt(e.target.value)||10})} style={{ width:"100%", padding:"8px 12px", borderRadius:8, background:"#0d1525", border:"1px solid #1e2e50", color:"#e8ecf3", fontFamily:"'Barlow', sans-serif", fontSize:14 }} />
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => definirPlano(g.id, planoEdit.tipo, planoEdit.tipo==="full"?null:planoEdit.dias, planoEdit.limiteJogadores)} style={{ flex:1, cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #3b82f6, #1d4ed8)", color:"#fff", padding:"10px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>✅ Salvar</button>
+                    <button onClick={() => setEditandoPlano(null)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"#1e2e50", color:"#94a3b8", padding:"10px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>✕</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {ativos.length === 0 && <p style={{ color:"#64748b", fontSize:14 }}>Nenhum grupo ativo ainda.</p>}

@@ -420,6 +420,159 @@ _Enviado pela gestão do grupo_ ⚽`;
     return `⚠️ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nPessoal, os jogadores abaixo ainda não pagaram a mensalidade de R$ ${configValores.mensalista}:\n\n${lista}\n\nPor favor, regularizem o pagamento. Obrigado! ⚽`;
   };
 
+  const gerarPDF = () => {
+    const jogosDoMes = Object.keys(presencas || {}).filter(d => d.startsWith(mesFiltro)).sort();
+    const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; padding: 32px; color: #1a1a2e; font-size: 13px; }
+  .header { text-align: center; border-bottom: 3px solid #1d4ed8; padding-bottom: 16px; margin-bottom: 24px; }
+  .header h1 { font-size: 26px; color: #1d4ed8; font-weight: 900; letter-spacing: 1px; }
+  .header p { color: #64748b; font-size: 13px; margin-top: 4px; }
+  .secao { margin-bottom: 24px; }
+  .secao h2 { font-size: 15px; font-weight: 700; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; }
+  .secao-verde h2 { background: #dcfce7; color: #166534; }
+  .secao-vermelha h2 { background: #fee2e2; color: #991b1b; }
+  .secao-azul h2 { background: #dbeafe; color: #1e40af; }
+  .secao-amarela h2 { background: #fef9c3; color: #854d0e; }
+  .secao-cinza h2 { background: #f1f5f9; color: #334155; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  .valor-verde { color: #16a34a; font-weight: 700; }
+  .valor-vermelho { color: #dc2626; font-weight: 700; }
+  .resumo { display: flex; gap: 16px; margin-bottom: 24px; }
+  .resumo-card { flex: 1; border-radius: 8px; padding: 14px 16px; }
+  .resumo-card p { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+  .resumo-card span { font-size: 22px; font-weight: 900; }
+  .card-verde { background: #dcfce7; }
+  .card-verde p { color: #166534; }
+  .card-verde span { color: #16a34a; }
+  .card-vermelho { background: #fee2e2; }
+  .card-vermelho p { color: #991b1b; }
+  .card-vermelho span { color: #dc2626; }
+  .card-azul { background: #dbeafe; }
+  .card-azul p { color: #1e40af; }
+  .card-azul span { color: #1d4ed8; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .tag-verde { background: #dcfce7; color: #166534; }
+  .tag-vermelho { background: #fee2e2; color: #dc2626; }
+  .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 11px; }
+  .bar-bg { background: #e2e8f0; border-radius: 4px; height: 8px; margin-top: 4px; }
+  .bar-fill { height: 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⚽ ${nomeGrupo}</h1>
+  <p>Relatório Mensal — ${nomeMes(mesFiltro)}</p>
+  <p style="font-size:11px;margin-top:2px;">Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</p>
+</div>
+
+<div class="resumo">
+  <div class="resumo-card card-verde">
+    <p>RECEITA DO MÊS</p>
+    <span>R$ ${receitaMes.toFixed(2)}</span>
+  </div>
+  <div class="resumo-card card-vermelho">
+    <p>DESPESAS DO MÊS</p>
+    <span>R$ ${despesasMes.toFixed(2)}</span>
+  </div>
+  <div class="resumo-card card-azul">
+    <p>SALDO</p>
+    <span style="color:${saldo>=0?"#1d4ed8":"#dc2626"}">R$ ${saldo.toFixed(2)}</span>
+  </div>
+</div>
+
+<div class="secao secao-verde">
+  <h2>💚 RECEITAS (${jogadores.filter(j=>{const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);return!!p;}).length} pagamentos)</h2>
+  <table>
+    <tr><th>Jogador</th><th>Tipo</th><th>Valor</th></tr>
+    ${jogadores.filter(j=>{const p=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);return!!p;}).map(j=>{
+      const pag=j.pagamentos.find(p=>p.mes===mesFiltro&&p.pago);
+      return `<tr><td>${j.nome}</td><td>${j.tipo==="mensalista"?"Mensalista":"Avulso"}</td><td class="valor-verde">R$ ${pag.valor.toFixed(2)}</td></tr>`;
+    }).join("")}
+    <tr style="background:#f8fafc;font-weight:700"><td colspan="2">TOTAL</td><td class="valor-verde">R$ ${receitaMes.toFixed(2)}</td></tr>
+  </table>
+</div>
+
+<div class="secao secao-vermelha">
+  <h2>🔴 DESPESAS (${despesas.filter(d=>d.data.startsWith(mesFiltro)).length} lançamentos)</h2>
+  <table>
+    <tr><th>Descrição</th><th>Categoria</th><th>Data</th><th>Valor</th></tr>
+    ${despesas.filter(d=>d.data.startsWith(mesFiltro)).map(d=>`
+      <tr><td>${d.descricao}</td><td>${d.categoria}</td><td>${d.data.split("-").reverse().join("/")}</td><td class="valor-vermelho">R$ ${d.valor.toFixed(2)}</td></tr>
+    `).join("")}
+    <tr style="background:#f8fafc;font-weight:700"><td colspan="3">TOTAL</td><td class="valor-vermelho">R$ ${despesasMes.toFixed(2)}</td></tr>
+  </table>
+</div>
+
+${inadimplentes.length > 0 ? `
+<div class="secao secao-amarela">
+  <h2>⚠️ INADIMPLENTES (${inadimplentes.length})</h2>
+  <table>
+    <tr><th>Jogador</th><th>Telefone</th><th>Valor em Aberto</th></tr>
+    ${inadimplentes.map(j=>`<tr><td>${j.nome}</td><td>${j.telefone||"—"}</td><td class="valor-vermelho">R$ ${valorMensalista.toFixed(2)}</td></tr>`).join("")}
+  </table>
+</div>` : `
+<div class="secao secao-verde">
+  <h2>✅ INADIMPLENTES</h2>
+  <p style="padding:8px 12px;color:#16a34a;font-weight:700">Todos os mensalistas estão em dia! 👏</p>
+</div>`}
+
+${jogosDoMes.length > 0 ? `
+<div class="secao secao-azul">
+  <h2>📅 FREQUÊNCIA (${jogosDoMes.length} jogos)</h2>
+  <table>
+    <tr><th>Jogador</th><th>Presenças</th><th>%</th><th>Frequência</th></tr>
+    ${jogadores.filter(j=>j.status==="ativo").sort((a,b)=>{
+      const fa=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(a.id)).length;
+      const fb=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(b.id)).length;
+      return fb-fa;
+    }).map(j=>{
+      const presentes=jogosDoMes.filter(d=>((presencas||{})[d]||[]).includes(j.id)).length;
+      const pct=jogosDoMes.length?(presentes/jogosDoMes.length)*100:0;
+      const cor=pct>=75?"#16a34a":pct>=50?"#d97706":"#dc2626";
+      return `<tr>
+        <td>${j.nome}</td>
+        <td>${presentes}/${jogosDoMes.length}</td>
+        <td style="color:${cor};font-weight:700">${pct.toFixed(0)}%</td>
+        <td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${cor}"></div></div></td>
+      </tr>`;
+    }).join("")}
+  </table>
+</div>` : ""}
+
+<div class="secao secao-cinza">
+  <h2>👥 JOGADORES ATIVOS (${jogadores.filter(j=>j.status==="ativo").length})</h2>
+  <table>
+    <tr><th>Nome</th><th>Tipo</th><th>Status Pagamento</th></tr>
+    ${jogadores.filter(j=>j.status==="ativo").map(j=>{
+      const pag=j.pagamentos.find(p=>p.mes===mesFiltro);
+      const pago=pag&&pag.pago;
+      return `<tr><td>${j.nome}</td><td>${j.tipo==="mensalista"?"Mensalista":"Avulso"}</td><td><span class="tag ${pago?"tag-verde":"tag-vermelho"}">${pago?"✅ Pago":"⚠️ Pendente"}</span></td></tr>`;
+    }).join("")}
+  </table>
+</div>
+
+<div class="footer">
+  <p>⚽ ${nomeGrupo} · Sistema de Gestão · ${nomeMes(mesFiltro)}</p>
+</div>
+</body>
+</html>`;
+
+    const janela = window.open("", "_blank");
+    janela.document.write(html);
+    janela.document.close();
+    janela.focus();
+    setTimeout(() => janela.print(), 500);
+  };
+
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -837,7 +990,10 @@ _Enviado pela gestão do grupo_ ⚽`;
         {/* DASHBOARD */}
         {aba === "dashboard" && (
           <div>
-            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 20 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
+              <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>
+            </div>
 
             {/* Avisos */}
             {avisos.length > 0 && (
@@ -1009,6 +1165,7 @@ _Enviado pela gestão do grupo_ ⚽`;
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>FINANCEIRO</h2>
               <div style={{ display: "flex", gap: 8 }}>
                 {isAdmin && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 WhatsApp</button>}
+                <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>
                 {isAdmin && <button className="btn btn-red" onClick={() => setModalDespesa(true)}>+ Nova Despesa</button>}
               </div>
             </div>

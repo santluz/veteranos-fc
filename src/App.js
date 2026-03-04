@@ -50,7 +50,7 @@ export default function App() {
   const [tipoAcesso, setTipoAcesso] = useState("visitante");
   const [erroLoginGrupo, setErroLoginGrupo] = useState("");
   const [telaLanding, setTelaLanding] = useState(true);
-  const [telaLogin, setTelaLogin] = useState(true);
+  const [telaLogin, setTelaLogin] = useState(false);
   const [telaCadastro, setTelaCadastro] = useState(false);
   const [telaGruposMaster, setTelaGruposMaster] = useState(false);
   const [gruposLista, setGruposLista] = useState([]);
@@ -648,8 +648,8 @@ ${jogosDoMes.length > 0 ? `
               </div>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
-              <button className="land-btn" style={{ padding: "10px 24px", background: "transparent", border: "2px solid #3b82f6", color: "#3b82f6", fontSize: 14 }} onClick={() => { setTelaLanding(false); }}>Entrar</button>
-              <button className="land-btn" style={{ padding: "10px 24px", background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", color: "#fff", fontSize: 14 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>Cadastrar Grupo</button>
+              <button className="land-btn" style={{ padding: "10px 24px", background: "transparent", border: "2px solid #3b82f6", color: "#3b82f6", fontSize: 14 }} onClick={() => { setTelaLanding(false); setTelaLogin(true); }}>Entrar</button>
+              <button className="land-btn" style={{ padding: "10px 24px", background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", color: "#fff", fontSize: 14 }} onClick={() => { setTelaLanding(false); setTelaCadastro(true); }}>Cadastrar Grupo</button>
             </div>
           </header>
 
@@ -670,7 +670,7 @@ ${jogosDoMes.length > 0 ? `
               <button className="land-btn" style={{ padding: "16px 40px", background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", color: "#fff", fontSize: 16 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>
                 🚀 Cadastrar Meu Grupo
               </button>
-              <button className="land-btn" style={{ padding: "16px 40px", background: "transparent", border: "2px solid #1e2e50", color: "#94a3b8", fontSize: 16 }} onClick={() => setTelaLanding(false)}>
+              <button className="land-btn" style={{ padding: "16px 40px", background: "transparent", border: "2px solid #1e2e50", color: "#94a3b8", fontSize: 16 }} onClick={() => { setTelaLanding(false); setTelaLogin(true); }}>
                 👁 Ver Demonstração
               </button>
             </div>
@@ -734,10 +734,10 @@ ${jogosDoMes.length > 0 ? `
           <section style={{ textAlign: "center", padding: "60px 24px 80px", background: "linear-gradient(135deg, rgba(59,130,246,0.06), rgba(0,217,126,0.04))", borderTop: "1px solid #1e2e50" }}>
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 900, marginBottom: 16 }}>PRONTO PARA ORGANIZAR SEU GRUPO?</h2>
             <p style={{ color: "#94a3b8", fontSize: 16, marginBottom: 32 }}>Cadastre seu grupo agora e comece a usar em minutos.</p>
-            <button className="land-btn" style={{ padding: "18px 48px", background: "linear-gradient(135deg, #00d97e, #00b865)", color: "#000", fontSize: 18, fontWeight: 900 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>
+            <button className="land-btn" style={{ padding: "18px 48px", background: "linear-gradient(135deg, #00d97e, #00b865)", color: "#000", fontSize: 18, fontWeight: 900 }} onClick={() => { setTelaLanding(false); setTelaCadastro(true); }}>
               ⚽ CADASTRAR MEU GRUPO GRÁTIS
             </button>
-            <p style={{ color: "#475569", fontSize: 13, marginTop: 16 }}>Já tem cadastro? <span style={{ color: "#3b82f6", cursor: "pointer", fontWeight: 700 }} onClick={() => setTelaLanding(false)}>Entrar no sistema →</span></p>
+            <p style={{ color: "#475569", fontSize: 13, marginTop: 16 }}>Já tem cadastro? <span style={{ color: "#3b82f6", cursor: "pointer", fontWeight: 700 }} onClick={() => { setTelaLanding(false); setTelaLogin(true); }}>Entrar no sistema →</span></p>
           </section>
 
           {/* FOOTER */}
@@ -748,7 +748,7 @@ ${jogosDoMes.length > 0 ? `
       )}
 
       {/* TELA MASTER — selecionar grupo */}
-      {telaGruposMaster && (
+      {!telaLanding && telaGruposMaster && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 560 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -791,7 +791,7 @@ ${jogosDoMes.length > 0 ? `
       )}
 
       {/* TELA INICIAL — escolha do grupo */}
-      {telaLogin && !telaCadastro && (
+      {!telaLanding && telaLogin && !telaCadastro && (
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
@@ -821,14 +821,14 @@ ${jogosDoMes.length > 0 ? `
             <button className="btn btn-blue" style={{ width: "100%", padding: "14px", marginBottom: 12 }} onClick={entrarNoGrupo}>Entrar</button>
             <div style={{ borderTop: "1px solid #1e2e50", paddingTop: 16, marginTop: 4 }}>
               <p style={{ color: "#64748b", fontSize: 12, marginBottom: 10 }}>Ainda não tem um grupo cadastrado?</p>
-              <button className="btn btn-gray" style={{ width: "100%", padding: "12px" }} onClick={() => { setTelaCadastro(true); setOkCadastro(""); setErroCadastro(""); }}>📋 Solicitar Cadastro de Novo Grupo</button>
+              <button className="btn btn-gray" style={{ width: "100%", padding: "12px" }} onClick={() => { setTelaLogin(false); setTelaCadastro(true); setOkCadastro(""); setErroCadastro(""); }}>📋 Solicitar Cadastro de Novo Grupo</button>
             </div>
           </div>
         </div>
       )}
 
       {/* TELA DE CADASTRO */}
-      {telaCadastro && (
+      {!telaLanding && telaCadastro && (
         <div className="overlay">
           <div className="modal">
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 4 }}>📋 SOLICITAR CADASTRO</h2>
@@ -856,7 +856,7 @@ ${jogosDoMes.length > 0 ? `
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
               <button className="btn btn-green" style={{ flex: 1 }} onClick={solicitarCadastro}>Enviar Solicitação</button>
-              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => { setTelaCadastro(false); setOkCadastro(""); setErroCadastro(""); }}>Voltar</button>
+              <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => { setTelaCadastro(false); setTelaLanding(true); setOkCadastro(""); setErroCadastro(""); }}>Voltar</button>
             </div>
           </div>
         </div>
@@ -1092,7 +1092,7 @@ ${jogosDoMes.length > 0 ? `
           <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => {
             setNomeGrupoState("VETERANOS FC"); setJogadoresState([]); setDespesasState([]); setPresencasState({}); setGrupoId("");
             if (isMaster) { setTelaGruposMaster(true); carregarGrupos(); }
-            else { setTelaLogin(true); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); }
+            else { setTelaLanding(true); setTelaLogin(false); setGrupoIdInput(""); setSenhaInput(""); setErroLoginGrupo(""); setIsAdmin(false); setIsMaster(false); }
           }}>{isMaster ? "🔄 Trocar Grupo" : "🚪 Sair"}</button>
         </div>
       </header>

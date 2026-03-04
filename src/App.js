@@ -748,7 +748,6 @@ ${jogosDoMes.length > 0 ? `
       )}
 
       {/* TELA MASTER — selecionar grupo */}
-      {/* TELA MASTER — selecionar grupo */
       {telaGruposMaster && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 560 }}>

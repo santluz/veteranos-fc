@@ -158,6 +158,16 @@ export default function App() {
     return () => unsub();
   // eslint-disable-next-line
   }, [grupoId, isMaster]);
+  // Bloquear navegação do browser entre telas internas
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const handlePop = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, []);
+
   // PWA install prompt
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); };
@@ -575,6 +585,7 @@ ${jogosDoMes.length > 0 ? `
   };
 
   const css = `
+    html, body { overscroll-behavior-y: none; }
     @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0a0f1e; } ::-webkit-scrollbar-thumb { background: #2a3a5c; border-radius: 3px; }
@@ -1118,7 +1129,7 @@ ${jogosDoMes.length > 0 ? `
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>VISÃO GERAL — {nomeMes(mesFiltro)}</h2>
-              <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>
+              {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>}
             </div>
 
             {/* Avisos */}
@@ -1272,7 +1283,7 @@ ${jogosDoMes.length > 0 ? `
                     <span className={`tag ${j.status==="ativo"?"tag-green":"tag-red"}`}>{j.status}</span>
                     <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
                       {isAdmin && <button className={`btn ${pag?.pago?"btn-gray":"btn-green"}`} style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => togglePagamento(j.id)}>{pag?.pago?"✅":"Pagar"}</button>}
-                      <button className="btn btn-blue" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => setModalHistorico(j)}>📋</button>
+                      {isAdmin && <button className="btn btn-blue" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => setModalHistorico(j)}>📋</button>}
                       {isAdmin && <button className="btn btn-blue" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => editarJogador(j)}>✏️</button>}
                       {isAdmin && <button className="btn btn-red" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => removerJogador(j.id)}>🗑</button>}
                     </div>

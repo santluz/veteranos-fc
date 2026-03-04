@@ -795,6 +795,7 @@ ${jogosDoMes.length > 0 ? `
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
+            <button onClick={() => { setTelaLogin(false); setTelaLanding(true); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>← Voltar</button>
             <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO DE GRUPOS</h1>
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Futebol Veterano</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>

@@ -1446,7 +1446,7 @@ function MasterPanel({ db, grupoAtual }) {
   }, [db]);
 
   const aprovar = async (id, grupo) => {
-    const { doc: docFn, setDoc: setDocFn, getDoc } = await import("firebase/firestore");
+    const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
     await setDocFn(docFn(db, "grupos", id), { status: "ativo" }, { merge: true });
     // Enviar email de boas-vindas para o solicitante
     if (grupo.emailResponsavel) {

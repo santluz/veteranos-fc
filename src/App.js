@@ -274,7 +274,7 @@ export default function App() {
           body: JSON.stringify({
             service_id: "service_veteranos",
             template_id: "template_cadastro",
-            user_id: "user_veteranos",
+            user_id: "qmhFlMvfDr9Xfy_Hz",
             template_params: {
               to_email: "esantluz@gmail.com",
               grupo_nome: ng,

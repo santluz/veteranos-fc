@@ -385,10 +385,11 @@ _Enviado pela gestão do grupo_ ⚽`;
       data: new Date().toISOString(),
       lidos: []
     };
-    setAvisos([novo, ...avisos]);
+    const novosAvisos = [novo, ...(avisos || [])];
+    setModalAviso(false);
     setAvisoTexto("");
     setAvisoUrgente(false);
-    setModalAviso(false);
+    setTimeout(() => setAvisos(novosAvisos), 100);
   };
 
   const gerarTextoWhatsapp = () => {
@@ -503,9 +504,9 @@ _Enviado pela gestão do grupo_ ⚽`;
                 <input className="input" placeholder="(21) 99999-9999" value={cadastroForm.telefone} onChange={e => setCadastroForm({ ...cadastroForm, telefone: maskTelefone(e.target.value) })} />
               </div>
               <div>
-                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>CÓDIGO DESEJADO PARA O GRUPO</p>
-                <input className="input" placeholder="Ex: veteranos_rj (só letras, números e _)" value={cadastroForm.codigo} onChange={e => setCadastroForm({ ...cadastroForm, codigo: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })} />
-                <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Este será o código de acesso ao sistema.</p>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>USUÁRIO DE ACESSO</p>
+                <input className="input" placeholder="Ex: veteranos_rj" value={cadastroForm.codigo} onChange={e => setCadastroForm({ ...cadastroForm, codigo: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })} />
+                <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Este será o usuário de acesso ao sistema. Ex: veteranos_rj</p>
               </div>
               {erroCadastro && <p style={{ color: "#ff4757", fontSize: 13 }}>{erroCadastro}</p>}
               {okCadastro && <p style={{ color: "#00d97e", fontSize: 13 }}>{okCadastro}</p>}

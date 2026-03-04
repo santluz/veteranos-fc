@@ -55,7 +55,7 @@ export default function App() {
   const [telaGruposMaster, setTelaGruposMaster] = useState(false);
   const [gruposLista, setGruposLista] = useState([]);
   const [carregandoGrupos, setCarregandoGrupos] = useState(false);
-  const [cadastroForm, setCadastroForm] = useState({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
+  const [cadastroForm, setCadastroForm] = useState({ nomeGrupo: "", responsavel: "", telefone: "", email: "", codigo: "" });
   const [erroCadastro, setErroCadastro] = useState("");
   const [okCadastro, setOkCadastro] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -277,8 +277,9 @@ export default function App() {
 
 
   const solicitarCadastro = async () => {
-    const { nomeGrupo: ng, responsavel, telefone, codigo } = cadastroForm;
-    if (!ng || !responsavel || !telefone || !codigo) { setErroCadastro("Preencha todos os campos."); return; }
+    const { nomeGrupo: ng, responsavel, telefone, email, codigo } = cadastroForm;
+    if (!ng || !responsavel || !telefone || !email || !codigo) { setErroCadastro("Preencha todos os campos."); return; }
+    if (!email.includes("@")) { setErroCadastro("Digite um email válido."); return; }
     const id = codigo.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (!id) { setErroCadastro("Código inválido. Use letras, números e underline."); return; }
     try {
@@ -290,6 +291,7 @@ export default function App() {
         nomeGrupo: ng.toUpperCase(),
         responsavel,
         telefone: maskTelefone(telefone),
+        emailResponsavel: email,
         senhaAdmin: "admin123",
         status: "pendente",
         dataCadastro: new Date().toISOString(),
@@ -314,6 +316,7 @@ export default function App() {
               grupo_codigo: id,
               responsavel: responsavel,
               telefone: maskTelefone(telefone),
+              email_solicitante: email,
               data: new Date().toLocaleDateString("pt-BR")
             }
           })
@@ -321,7 +324,7 @@ export default function App() {
       } catch(emailErr) { console.log("Email não enviado:", emailErr); }
       setOkCadastro("✅ Cadastro enviado com sucesso! Aguarde a aprovação do administrador.");
       setErroCadastro("");
-      setCadastroForm({ nomeGrupo: "", responsavel: "", telefone: "", codigo: "" });
+      setCadastroForm({ nomeGrupo: "", responsavel: "", telefone: "", email: "", codigo: "" });
     } catch(e) { setErroCadastro("Erro ao enviar cadastro. Tente novamente."); }
   };
 
@@ -853,6 +856,10 @@ ${jogosDoMes.length > 0 ? `
               <div>
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>NOME DO RESPONSÁVEL</p>
                 <input className="input" placeholder="Seu nome completo" value={cadastroForm.responsavel} onChange={e => setCadastroForm({ ...cadastroForm, responsavel: e.target.value })} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>EMAIL</p>
+                <input className="input" type="email" placeholder="seu@email.com" value={cadastroForm.email} onChange={e => setCadastroForm({ ...cadastroForm, email: e.target.value })} />
               </div>
               <div>
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>TELEFONE / WHATSAPP</p>
@@ -1438,9 +1445,31 @@ function MasterPanel({ db, grupoAtual }) {
     });
   }, [db]);
 
-  const aprovar = async (id) => {
-    const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
+  const aprovar = async (id, grupo) => {
+    const { doc: docFn, setDoc: setDocFn, getDoc } = await import("firebase/firestore");
     await setDocFn(docFn(db, "grupos", id), { status: "ativo" }, { merge: true });
+    // Enviar email de boas-vindas para o solicitante
+    if (grupo.emailResponsavel) {
+      try {
+        await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service_id: "service_veteranos",
+            template_id: "template_aprovacao",
+            user_id: "qmhFlMvfDr9Xfy_Hz",
+            template_params: {
+              to_email: grupo.emailResponsavel,
+              responsavel: grupo.responsavel || "Responsável",
+              grupo_nome: grupo.nomeGrupo || id,
+              grupo_usuario: id,
+              senha_inicial: "admin123",
+              link_sistema: "https://veteranos-fc.vercel.app"
+            }
+          })
+        });
+      } catch(e) { console.log("Erro ao enviar email aprovação:", e); }
+    }
   };
   const bloquear = async (id) => {
     const { doc: docFn, setDoc: setDocFn } = await import("firebase/firestore");
@@ -1482,7 +1511,7 @@ function MasterPanel({ db, grupoAtual }) {
                   {g.dataCadastro && <p style={{ fontSize:11, color:"#475569" }}>Solicitado em: {new Date(g.dataCadastro).toLocaleDateString("pt-BR")}</p>}
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => aprovar(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"8px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>✅ Aprovar</button>
+                  <button onClick={() => aprovar(g.id, g)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"8px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>✅ Aprovar</button>
                   <button onClick={() => excluir(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #ff4757, #cc2030)", color:"#fff", padding:"8px 16px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:13 }}>🗑 Recusar</button>
                 </div>
               </div>
@@ -1505,7 +1534,7 @@ function MasterPanel({ db, grupoAtual }) {
                 {g.responsavel && <p style={{ fontSize:12, color:"#64748b" }}>{g.responsavel} {g.telefone ? `· ${g.telefone}` : ""}</p>}
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                {g.status !== "ativo" && <button onClick={() => aprovar(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>✅ Ativar</button>}
+                {g.status !== "ativo" && <button onClick={() => aprovar(g.id, g)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #00d97e, #00b865)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>✅ Ativar</button>}
                 {g.status !== "bloqueado" && <button onClick={() => bloquear(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #f59e0b, #d97706)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🚫 Bloquear</button>}
                 <button onClick={() => excluir(g.id)} style={{ cursor:"pointer", border:"none", borderRadius:8, background:"linear-gradient(135deg, #ff4757, #cc2030)", color:"#fff", padding:"6px 12px", fontFamily:"'Barlow', sans-serif", fontWeight:700, fontSize:12 }}>🗑</button>
               </div>

@@ -49,6 +49,7 @@ export default function App() {
   const [senhaInput, setSenhaInput] = useState("");
   const [tipoAcesso, setTipoAcesso] = useState("visitante");
   const [erroLoginGrupo, setErroLoginGrupo] = useState("");
+  const [telaLanding, setTelaLanding] = useState(true);
   const [telaLogin, setTelaLogin] = useState(true);
   const [telaCadastro, setTelaCadastro] = useState(false);
   const [telaGruposMaster, setTelaGruposMaster] = useState(false);
@@ -622,7 +623,132 @@ ${jogosDoMes.length > 0 ? `
     <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3" }}>
       <style>{css}</style>
 
+      {/* LANDING PAGE */}
+      {telaLanding && (
+        <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3", overflowX: "hidden" }}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+            .land-btn { cursor: pointer; border: none; border-radius: 10px; font-family: 'Barlow', sans-serif; font-weight: 700; transition: all 0.2s; }
+            .land-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+            .feature-card { background: linear-gradient(135deg, #111827, #1a2540); border: 1px solid #1e2e50; border-radius: 20px; padding: 28px; transition: all 0.3s; }
+            .feature-card:hover { border-color: #3b82f6; transform: translateY(-4px); }
+            @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+            .float { animation: float 3s ease-in-out infinite; }
+            @keyframes fadein { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+            .fadein { animation: fadein 0.8s ease forwards; }
+          `}</style>
+
+          {/* HEADER */}
+          <header style={{ padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e2e50", background: "rgba(10,15,30,0.95)", position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(10px)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 28 }}>⚽</span>
+              <div>
+                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO DE GRUPOS</p>
+                <p style={{ fontSize: 10, color: "#64748b", fontWeight: 600, letterSpacing: 1 }}>VETERANOS FC</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button className="land-btn" style={{ padding: "10px 24px", background: "transparent", border: "2px solid #3b82f6", color: "#3b82f6", fontSize: 14 }} onClick={() => { setTelaLanding(false); }}>Entrar</button>
+              <button className="land-btn" style={{ padding: "10px 24px", background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", color: "#fff", fontSize: 14 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>Cadastrar Grupo</button>
+            </div>
+          </header>
+
+          {/* HERO */}
+          <section style={{ textAlign: "center", padding: "80px 24px 60px", maxWidth: 800, margin: "0 auto" }}>
+            <div className="float" style={{ fontSize: 72, marginBottom: 24 }}>⚽</div>
+            <h1 className="fadein" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(36px, 7vw, 72px)", fontWeight: 900, lineHeight: 1.1, marginBottom: 20 }}>
+              <span style={{ background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO COMPLETA</span>
+              <br />
+              <span style={{ color: "#e8ecf3" }}>DO SEU GRUPO</span>
+              <br />
+              <span style={{ color: "#ffba00" }}>VETERANOS FC</span>
+            </h1>
+            <p style={{ fontSize: "clamp(15px, 2.5vw, 18px)", color: "#94a3b8", lineHeight: 1.7, marginBottom: 36, maxWidth: 560, margin: "0 auto 36px" }}>
+              Controle financeiro, lista de presença, inadimplentes e muito mais — tudo no celular, para qualquer grupo de futebol veterano.
+            </p>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+              <button className="land-btn" style={{ padding: "16px 40px", background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", color: "#fff", fontSize: 16 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>
+                🚀 Cadastrar Meu Grupo
+              </button>
+              <button className="land-btn" style={{ padding: "16px 40px", background: "transparent", border: "2px solid #1e2e50", color: "#94a3b8", fontSize: 16 }} onClick={() => setTelaLanding(false)}>
+                👁 Ver Demonstração
+              </button>
+            </div>
+            <p style={{ color: "#475569", fontSize: 13, marginTop: 16 }}>✅ Gratuito para começar · Sem cartão de crédito</p>
+          </section>
+
+          {/* FUNCIONA NO CELULAR */}
+          <section style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(0,217,126,0.05))", border: "1px solid #1e2e50", margin: "0 24px 60px", borderRadius: 24, padding: "40px 32px", maxWidth: 900, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap", justifyContent: "center" }}>
+              <div style={{ fontSize: 80 }}>📱</div>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 12, color: "#3b82f6" }}>FUNCIONA NO CELULAR</h2>
+                <p style={{ color: "#94a3b8", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>Acesse de qualquer dispositivo — celular, tablet ou computador. Instale como app na tela inicial do seu celular e use sem internet.</p>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {["📱 Android", "🍎 iPhone", "💻 Computador", "📲 Instalar como App"].map(item => (
+                    <span key={item} style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{item}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* MULTI-GRUPOS */}
+          <section style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,217,126,0.05))", border: "1px solid #1e2e50", margin: "0 24px 60px", borderRadius: 24, padding: "40px 32px", maxWidth: 900, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap", justifyContent: "center" }}>
+              <div style={{ fontSize: 80 }}>👥</div>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 12, color: "#a855f7" }}>MULTI-GRUPOS</h2>
+                <p style={{ color: "#94a3b8", fontSize: 15, lineHeight: 1.7, marginBottom: 16 }}>Um único sistema para vários grupos. Cada grupo tem seus próprios dados, jogadores, financeiro e senha — completamente isolados.</p>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {["🔒 Dados isolados", "🔑 Senha própria", "📊 Dashboard individual", "♾️ Grupos ilimitados"].map(item => (
+                    <span key={item} style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7", padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{item}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* FEATURES GRID */}
+          <section style={{ maxWidth: 960, margin: "0 auto 60px", padding: "0 24px" }}>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 36, fontWeight: 900, textAlign: "center", marginBottom: 32 }}>TUDO QUE SEU GRUPO PRECISA</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+              {[
+                { icon: "💰", title: "Controle Financeiro", desc: "Receitas, despesas e saldo mensal. Saiba exatamente quanto entrou e saiu.", color: "#00d97e" },
+                { icon: "📅", title: "Lista de Presença", desc: "Registre quem jogou em cada partida e veja a frequência de cada jogador.", color: "#3b82f6" },
+                { icon: "⚠️", title: "Inadimplentes", desc: "Veja quem está em débito e gere mensagem automática para o WhatsApp do grupo.", color: "#ffba00" },
+                { icon: "🎂", title: "Aniversariantes", desc: "Nunca mais esqueça o aniversário dos jogadores. Alertas automáticos no mês.", color: "#a855f7" },
+                { icon: "📄", title: "Relatório PDF", desc: "Exporte o relatório completo do mês em PDF com um clique.", color: "#ff4757" },
+                { icon: "📢", title: "Comunicados", desc: "Envie avisos para todos os membros e gere mensagem pronta para o WhatsApp.", color: "#00d97e" },
+              ].map(f => (
+                <div key={f.title} className="feature-card">
+                  <div style={{ fontSize: 40, marginBottom: 14 }}>{f.icon}</div>
+                  <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, marginBottom: 8, color: f.color }}>{f.title}</h3>
+                  <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.6 }}>{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* CTA FINAL */}
+          <section style={{ textAlign: "center", padding: "60px 24px 80px", background: "linear-gradient(135deg, rgba(59,130,246,0.06), rgba(0,217,126,0.04))", borderTop: "1px solid #1e2e50" }}>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 900, marginBottom: 16 }}>PRONTO PARA ORGANIZAR SEU GRUPO?</h2>
+            <p style={{ color: "#94a3b8", fontSize: 16, marginBottom: 32 }}>Cadastre seu grupo agora e comece a usar em minutos.</p>
+            <button className="land-btn" style={{ padding: "18px 48px", background: "linear-gradient(135deg, #00d97e, #00b865)", color: "#000", fontSize: 18, fontWeight: 900 }} onClick={() => { setTelaLanding(false); setTelaLogin(false); setTelaCadastro(true); }}>
+              ⚽ CADASTRAR MEU GRUPO GRÁTIS
+            </button>
+            <p style={{ color: "#475569", fontSize: 13, marginTop: 16 }}>Já tem cadastro? <span style={{ color: "#3b82f6", cursor: "pointer", fontWeight: 700 }} onClick={() => setTelaLanding(false)}>Entrar no sistema →</span></p>
+          </section>
+
+          {/* FOOTER */}
+          <footer style={{ textAlign: "center", padding: "24px", borderTop: "1px solid #1e2e50", color: "#475569", fontSize: 12 }}>
+            <p>⚽ Gestão de Grupos Veteranos FC · Todos os direitos reservados</p>
+          </footer>
+        </div>
+      )}
+
       {/* TELA MASTER — selecionar grupo */}
+      {/* TELA MASTER — selecionar grupo */
       {telaGruposMaster && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 560 }}>

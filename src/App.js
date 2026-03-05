@@ -830,7 +830,7 @@ ${jogosDoMes.length > 0 ? `
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Futebol Veterano</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
               <div>
-                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600, textAlign: "left" }}>CÓDIGO DO GRUPO</p>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600, textAlign: "left" }}>USUÁRIO DE ACESSO</p>
                 <input className="input" placeholder="Ex: veteranos_fc, masters_fc..." value={grupoIdInput} onChange={e => { setGrupoIdInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>

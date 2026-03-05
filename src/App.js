@@ -1186,7 +1186,10 @@ ${jogosDoMes.length > 0 ? `
       {/* HEADER */}
       <header style={{ background: "linear-gradient(135deg, #0d1525, #111827)", borderBottom: "1px solid #1e2e50", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 28 }}>⚽</span>
+          {logoUrl
+            ? <img src={logoUrl} alt="logo" onClick={() => isAdmin && setModalLogo(true)} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", cursor: isAdmin ? "pointer" : "default", border: "2px solid #1e2e50", flexShrink: 0 }} />
+            : <span onClick={() => isAdmin && setModalLogo(true)} style={{ fontSize: 32, cursor: isAdmin ? "pointer" : "default" }}>⚽</span>
+          }
           <div>
             <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
             <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>SISTEMA DE GESTÃO {salvando && "· salvando..."}</p>

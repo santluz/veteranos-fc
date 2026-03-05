@@ -1371,7 +1371,7 @@ ${jogosDoMes.length > 0 ? `
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>FINANCEIRO</h2>
               <div style={{ display: "flex", gap: 8 }}>
                 {isAdmin && (isFull ? <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 WhatsApp</button> : <button className="btn btn-gray" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>💬 WhatsApp ⭐</button>)}
-                {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>}
+                {isAdmin && (isFull ? <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button> : <button className="btn btn-blue" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>📄 Exportar PDF ⭐</button>)}
                 {isAdmin && <button className="btn btn-red" onClick={() => setModalDespesa(true)}>+ Nova Despesa</button>}
               </div>
             </div>

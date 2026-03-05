@@ -1070,16 +1070,32 @@ ${jogosDoMes.length > 0 ? `
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>🖼 LOGO DO GRUPO</h2>
-            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Cole o link de uma imagem (URL) para usar como logo do grupo.</p>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Escolha uma imagem do seu celular ou computador.</p>
             {logoUrl && (
-              <img src={logoUrl} alt="preview" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 16px", display: "block", border: "3px solid #3b82f6" }} />
+              <img src={logoUrl} alt="preview" style={{ width: 90, height: 90, borderRadius: "50%", objectFit: "cover", margin: "0 auto 16px", display: "block", border: "3px solid #3b82f6" }} />
             )}
-            <input className="input" placeholder="https://exemplo.com/logo.png" value={logoInput} onChange={e => setLogoInput(e.target.value)} style={{ marginBottom: 16 }} />
-            <p style={{ color: "#475569", fontSize: 11, marginBottom: 16 }}>Dica: use uma imagem quadrada. Você pode hospedar no Google Drive, Imgur ou similar.</p>
+            <label style={{ display: "block", cursor: "pointer", padding: "14px", borderRadius: 12, border: "2px dashed #1e2e50", background: "#0d1525", marginBottom: 16, color: "#64748b", fontSize: 14 }}>
+              📁 Clique aqui para escolher a imagem
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 500000) { alert("Imagem muito grande! Use uma imagem menor que 500KB."); return; }
+                const reader = new FileReader();
+                reader.onload = ev => setLogoInput(ev.target.result);
+                reader.readAsDataURL(file);
+              }} />
+            </label>
+            {logoInput && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>Prévia:</p>
+                <img src={logoInput} alt="preview" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto", display: "block", border: "3px solid #00d97e" }} />
+              </div>
+            )}
+            <p style={{ color: "#475569", fontSize: 11, marginBottom: 16 }}>Tamanho máximo: 500KB. Formatos: JPG, PNG, GIF.</p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn btn-blue" style={{ flex: 1 }} onClick={() => { if(logoInput.trim()) { setLogoUrl(logoInput.trim()); setLogoInput(""); setModalLogo(false); } }}>✅ Salvar Logo</button>
+              <button className="btn btn-blue" style={{ flex: 1 }} onClick={() => { if(logoInput) { setLogoUrl(logoInput); setLogoInput(""); setModalLogo(false); } }}>✅ Salvar Logo</button>
               {logoUrl && <button className="btn btn-gray" onClick={() => { setLogoUrl(""); setLogoInput(""); setModalLogo(false); }}>🗑 Remover</button>}
-              <button className="btn btn-gray" onClick={() => setModalLogo(false)}>Cancelar</button>
+              <button className="btn btn-gray" onClick={() => { setLogoInput(""); setModalLogo(false); }}>Cancelar</button>
             </div>
           </div>
         </div>

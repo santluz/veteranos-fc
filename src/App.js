@@ -1258,7 +1258,7 @@ ${jogosDoMes.length > 0 ? `
             <div className="card" style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, color: "#ff4757" }}>⚠️ INADIMPLENTES ({inadimplentes.length})</h3>
-                {isAdmin && inadimplentes.length > 0 && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 Gerar WhatsApp</button>}
+                {isAdmin && inadimplentes.length > 0 && (isFull ? <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 Gerar WhatsApp</button> : <button className="btn btn-gray" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>💬 WhatsApp ⭐</button>)}
               </div>
               {inadimplentes.length === 0 ? (
                 <p style={{ color: "#00d97e", fontWeight: 700 }}>✅ Todos os mensalistas pagaram neste mês!</p>
@@ -1370,7 +1370,7 @@ ${jogosDoMes.length > 0 ? `
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>FINANCEIRO</h2>
               <div style={{ display: "flex", gap: 8 }}>
-                {isAdmin && <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 WhatsApp</button>}
+                {isAdmin && (isFull ? <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalWhatsapp(true)}>💬 WhatsApp</button> : <button className="btn btn-gray" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>💬 WhatsApp ⭐</button>)}
                 {isAdmin && <button className="btn btn-blue" style={{ fontSize: 12 }} onClick={gerarPDF}>📄 Exportar PDF</button>}
                 {isAdmin && <button className="btn btn-red" onClick={() => setModalDespesa(true)}>+ Nova Despesa</button>}
               </div>

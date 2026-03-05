@@ -72,6 +72,7 @@ export default function App() {
   const [despesas, setDespesasState] = useState([]);
   const [presencas, setPresencasState] = useState({});
   const [avisos, setAvisosState] = useState([]);
+  const [logoUrl, setLogoUrlState] = useState("");
 
   // Modais
   const [modalNome, setModalNome] = useState(false);
@@ -91,6 +92,8 @@ export default function App() {
   const [modalHistorico, setModalHistorico] = useState(null);
   const [modalWhatsapp, setModalWhatsapp] = useState(false);
   const [modalAviso, setModalAviso] = useState(false);
+  const [modalLogo, setModalLogo] = useState(false);
+  const [logoInput, setLogoInput] = useState("");
   const [avisoTexto, setAvisoTexto] = useState("");
   const [avisoUrgente, setAvisoUrgente] = useState(false);
   const [jogadorEdit, setJogadorEdit] = useState(null);
@@ -148,6 +151,7 @@ export default function App() {
         if (data.despesas) setDespesasState(data.despesas);
         if (data.presencas) setPresencasState(data.presencas);
         if (data.avisos) setAvisosState(data.avisos || []);
+        if (data.logoUrl !== undefined) setLogoUrlState(data.logoUrl || "");
         setPlanoState(data.plano || "degustacao");
         setDataExpiracaoState(data.dataExpiracao || null);
         setLimiteJogadoresCustom(data.limiteJogadores || 10);
@@ -209,6 +213,8 @@ export default function App() {
     const next = typeof val === "function" ? val(despesas) : val;
     setDespesasState(next); salvarFirebase("despesas", next);
   };
+  const setLogoUrl = (v) => { setLogoUrlState(v); salvarFirebase("logoUrl", v); };
+
   const setAvisos = (val) => {
     const next = typeof val === "function" ? val(avisos) : val;
     setAvisosState(next); salvarFirebase("avisos", next);
@@ -428,7 +434,7 @@ ${avisoTexto}
 _Enviado pela gestão do grupo_ ⚽`;
   };
 
-  const publicarAviso = () => {
+  const publicarAviso = async () => {
     if (!avisoTexto.trim()) return;
     const novo = {
       id: Date.now(),
@@ -438,10 +444,16 @@ _Enviado pela gestão do grupo_ ⚽`;
       lidos: []
     };
     const novosAvisos = [novo, ...(avisos || [])];
+    // Fechar modal e limpar campos ANTES de salvar
     setModalAviso(false);
     setAvisoTexto("");
     setAvisoUrgente(false);
-    setTimeout(() => setAvisos(novosAvisos), 100);
+    // Atualizar estado local imediatamente
+    setAvisosState(novosAvisos);
+    // Salvar no Firebase de forma independente
+    try {
+      await setDoc(doc(db, "grupos", grupoId), { avisos: novosAvisos }, { merge: true });
+    } catch(e) { console.error("Erro ao salvar aviso:", e); }
   };
 
   const gerarTextoWhatsapp = () => {
@@ -1053,6 +1065,26 @@ ${jogosDoMes.length > 0 ? `
         </div>
       )}
 
+      {/* MODAL LOGO */}
+      {modalLogo && (
+        <div className="overlay">
+          <div className="modal" style={{ textAlign: "center" }}>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 8 }}>🖼 LOGO DO GRUPO</h2>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>Cole o link de uma imagem (URL) para usar como logo do grupo.</p>
+            {logoUrl && (
+              <img src={logoUrl} alt="preview" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", margin: "0 auto 16px", display: "block", border: "3px solid #3b82f6" }} />
+            )}
+            <input className="input" placeholder="https://exemplo.com/logo.png" value={logoInput} onChange={e => setLogoInput(e.target.value)} style={{ marginBottom: 16 }} />
+            <p style={{ color: "#475569", fontSize: 11, marginBottom: 16 }}>Dica: use uma imagem quadrada. Você pode hospedar no Google Drive, Imgur ou similar.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-blue" style={{ flex: 1 }} onClick={() => { if(logoInput.trim()) { setLogoUrl(logoInput.trim()); setLogoInput(""); setModalLogo(false); } }}>✅ Salvar Logo</button>
+              {logoUrl && <button className="btn btn-gray" onClick={() => { setLogoUrl(""); setLogoInput(""); setModalLogo(false); }}>🗑 Remover</button>}
+              <button className="btn btn-gray" onClick={() => setModalLogo(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL NOME */}
       {modalNome && (
         <div className="overlay">
@@ -1150,6 +1182,7 @@ ${jogosDoMes.length > 0 ? `
             {isFull ? "⭐ FULL" : expirado ? "❌ Expirado" : `🕐 Degustação${diasRestantes !== null ? ` · ${diasRestantes}d` : ""}`}
           </span>}
           {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setNomeEdit(nomeGrupo); setModalNome(true); }}>✏️ Nome</button>}
+          {isAdmin && <button className="btn btn-gray" style={{ fontSize: 12 }} onClick={() => { setLogoInput(logoUrl); setModalLogo(true); }}>🖼 Logo</button>}
           {isAdmin && <button className="btn btn-green" style={{ fontSize: 12 }} onClick={() => { setConfigEdit(configValores); setModalConfig(true); }}>⚙️ Valores</button>}
           {isAdmin && <button className="btn btn-orange" style={{ fontSize: 12 }} onClick={() => { setMetaEdit(metaMensal); setModalMeta(true); }}>🎯 Meta</button>}
           {isAdmin && (isFull ? <button className="btn btn-green" style={{ fontSize: 12, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => setModalAviso(true)}>📢 Aviso</button> : <button className="btn btn-gray" style={{ fontSize: 12, opacity: 0.5 }} onClick={() => setShowUpgrade(true)}>📢 Aviso ⭐</button>)}

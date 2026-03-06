@@ -443,13 +443,9 @@ export default function App() {
 
 ` +
       timesSorteados.map(t =>
-        `*TIME ${t.numero}* (média: ${(t.somaEstrelas/t.jogadores.length).toFixed(1)}⭐)
-` +
-        t.jogadores.map(j => `• ${j.nome} ${"⭐".repeat(j.nivel||3)}`).join("
-")
-      ).join("
-
-");
+        `*TIME ${t.numero}* (média: ${(t.somaEstrelas/t.jogadores.length).toFixed(1)}⭐)\n` +
+        t.jogadores.map(j => `• ${j.nome} ${"⭐".repeat(j.nivel||3)}`).join("\n")
+      ).join("\n\n");
   };
 
   const togglePresenca = (jogadorId) => {

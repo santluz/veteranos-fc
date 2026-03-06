@@ -92,12 +92,15 @@ export default function App() {
   const [modalHistorico, setModalHistorico] = useState(null);
   const [modalWhatsapp, setModalWhatsapp] = useState(false);
   const [modalAviso, setModalAviso] = useState(false);
+  const [modalSorteio, setModalSorteio] = useState(false);
+  const [numTimes, setNumTimes] = useState(2);
+  const [timesSorteados, setTimesSorteados] = useState([]);
   const [modalLogo, setModalLogo] = useState(false);
   const [logoInput, setLogoInput] = useState("");
   const [avisoTexto, setAvisoTexto] = useState("");
   const [avisoUrgente, setAvisoUrgente] = useState(false);
   const [jogadorEdit, setJogadorEdit] = useState(null);
-  const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
+  const [novoJogador, setNovoJogador] = useState({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo", nivel: 3 });
   const [diaAniv, setDiaAniv] = useState("");
   const [mesAniv, setMesAniv] = useState("");
   const [anoAniv, setAnoAniv] = useState("");
@@ -380,7 +383,7 @@ export default function App() {
       setJogadores([...jogadores, { ...jogadorFinal, id: Date.now(), pagamentos: [] }]);
     }
     setModalJogador(false);
-    setNovoJogador({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo" });
+    setNovoJogador({ nome: "", email: "", telefone: "", nascimento: "", tipo: "mensalista", status: "ativo", nivel: 3 });
     setDiaAniv(""); setMesAniv(""); setAnoAniv("");
     setJogadorEdit(null);
   };
@@ -393,7 +396,7 @@ export default function App() {
   };
 
   const editarJogador = (j) => {
-    setNovoJogador({ nome: j.nome, email: j.email, telefone: j.telefone, nascimento: j.nascimento||"", tipo: j.tipo, status: j.status });
+    setNovoJogador({ nome: j.nome, email: j.email, telefone: j.telefone, nascimento: j.nascimento||"", tipo: j.tipo, status: j.status, nivel: j.nivel||3 });
     if (j.nascimento) {
       const parts = j.nascimento.split("-");
       setAnoAniv(parts[0]); setMesAniv(parts[1]); setDiaAniv(parts[2]);
@@ -415,6 +418,39 @@ export default function App() {
   };
 
   const getPagamento = (j) => j.pagamentos.find(p => p.mes === mesFiltro);
+
+  const sortearTimes = () => {
+    const presentes = jogadores.filter(j => j.status === "ativo" && presencasData.includes(j.id));
+    if (presentes.length < numTimes) { alert("Jogadores insuficientes para o número de times!"); return; }
+    // Ordenar por nível decrescente
+    const ordenados = [...presentes].sort((a, b) => (b.nivel||3) - (a.nivel||3));
+    // Distribuir em serpentina para equilibrar
+    const times = Array.from({ length: numTimes }, (_, i) => ({ numero: i + 1, jogadores: [], somaEstrelas: 0 }));
+    ordenados.forEach((j, idx) => {
+      // Serpentina: 0,1,2,2,1,0,0,1,2...
+      const rodada = Math.floor(idx / numTimes);
+      const posNaRodada = idx % numTimes;
+      const timeIdx = rodada % 2 === 0 ? posNaRodada : numTimes - 1 - posNaRodada;
+      times[timeIdx].jogadores.push(j);
+      times[timeIdx].somaEstrelas += (j.nivel || 3);
+    });
+    setTimesSorteados(times);
+    setModalSorteio(true);
+  };
+
+  const gerarTextoTimes = () => {
+    return `⚽ *${nomeGrupo}* — Times do dia
+
+` +
+      timesSorteados.map(t =>
+        `*TIME ${t.numero}* (média: ${(t.somaEstrelas/t.jogadores.length).toFixed(1)}⭐)
+` +
+        t.jogadores.map(j => `• ${j.nome} ${"⭐".repeat(j.nivel||3)}`).join("
+")
+      ).join("
+
+");
+  };
 
   const togglePresenca = (jogadorId) => {
     const presencasAtual = presencas && typeof presencas === "object" ? { ...presencas } : {};
@@ -930,6 +966,15 @@ ${jogosDoMes.length > 0 ? `
                 <option value="mensalista">Mensalista (R$ {configValores.mensalista})</option>
                 <option value="avulso">Avulso (R$ {configValores.avulso})</option>
               </select>
+              <div>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8, fontWeight: 600 }}>NÍVEL DO JOGADOR</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} type="button" onClick={() => setNovoJogador({ ...novoJogador, nivel: n })} style={{ flex: 1, padding: "10px 4px", borderRadius: 8, border: `2px solid ${novoJogador.nivel >= n ? "#ffba00" : "#1e2e50"}`, background: novoJogador.nivel >= n ? "rgba(255,186,0,0.15)" : "#0d1525", cursor: "pointer", fontSize: 18, transition: "all 0.15s" }}>⭐</button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{["","Iniciante","Básico","Intermediário","Avançado","Expert"][novoJogador.nivel||3]}</p>
+              </div>
               <select className="input" value={novoJogador.status} onChange={e => setNovoJogador({ ...novoJogador, status: e.target.value })}>
                 <option value="ativo">Ativo</option>
                 <option value="inativo">Inativo</option>
@@ -1061,6 +1106,49 @@ ${jogosDoMes.length > 0 ? `
               <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>WhatsApp ou ligue para Edson</p>
             </div>
             <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setShowUpgrade(false)}>Fechar</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SORTEIO */}
+      {modalSorteio && (
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 560 }}>
+            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, marginBottom: 4 }}>⚽ TIMES SORTEADOS</h2>
+            <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>{presencasData.length} jogadores · {numTimes} times</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+              {timesSorteados.map(t => (
+                <div key={t.numero} style={{ background: "#0d1525", borderRadius: 12, padding: 16, border: "1px solid #1e2e50" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 900, color: ["#3b82f6","#00d97e","#ffba00","#a855f7","#ff4757"][t.numero-1] || "#3b82f6" }}>TIME {t.numero}</p>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Média: {(t.somaEstrelas/t.jogadores.length).toFixed(1)}⭐ · {t.jogadores.length} jogadores</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {t.jogadores.map(j => (
+                      <div key={j.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 14 }}>{j.nome}</span>
+                        <span style={{ fontSize: 12, color: "#ffba00" }}>{"⭐".repeat(j.nivel||3)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>Nº DE TIMES</p>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[2,3,4].map(n => (
+                    <button key={n} onClick={() => { setNumTimes(n); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${numTimes===n?"#3b82f6":"#1e2e50"}`, background: numTimes===n?"rgba(59,130,246,0.15)":"#0d1525", color: numTimes===n?"#3b82f6":"#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14 }}>{n}</button>
+                  ))}
+                </div>
+              </div>
+              <button className="btn btn-blue" style={{ alignSelf: "flex-end", padding: "10px 20px" }} onClick={sortearTimes}>🔀 Novo Sorteio</button>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-green" style={{ flex: 1, background: "linear-gradient(135deg, #25d366, #128c7e)" }} onClick={() => { navigator.clipboard.writeText(gerarTextoTimes()); alert("Copiado para WhatsApp!"); }}>💬 Copiar WhatsApp</button>
+              <button className="btn btn-gray" onClick={() => setModalSorteio(false)}>Fechar</button>
+            </div>
           </div>
         </div>
       )}
@@ -1384,7 +1472,7 @@ ${jogosDoMes.length > 0 ? `
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>JOGADORES</h2>
-              {isAdmin && <button className="btn btn-green" onClick={() => { setJogadorEdit(null); setNovoJogador({ nome:"",email:"",telefone:"",nascimento:"",tipo:"mensalista",status:"ativo" }); setModalJogador(true); }}>+ Novo Jogador</button>}
+              {isAdmin && <button className="btn btn-green" onClick={() => { setJogadorEdit(null); setNovoJogador({ nome:"",email:"",telefone:"",nascimento:"",tipo:"mensalista",status:"ativo",nivel:3 }); setModalJogador(true); }}>+ Novo Jogador</button>}
             </div>
             <div className="card">
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1.5fr 90px 100px 160px", gap: 8, padding: "8px 16px", marginBottom: 8 }}>
@@ -1402,6 +1490,7 @@ ${jogosDoMes.length > 0 ? `
                     <p style={{ fontSize: 13, color: "#94a3b8" }}>{j.telefone||"—"}</p>
                     <span className={`tag ${j.tipo==="mensalista"?"tag-blue":"tag-yellow"}`}>{j.tipo==="mensalista"?"Mensal":"Avulso"}</span>
                     <span className={`tag ${j.status==="ativo"?"tag-green":"tag-red"}`}>{j.status}</span>
+                    <span style={{ fontSize: 12, color: "#ffba00" }}>{"⭐".repeat(j.nivel||3)}</span>
                     <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
                       {isAdmin && <button className={`btn ${pag?.pago?"btn-gray":"btn-green"}`} style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => togglePagamento(j.id)}>{pag?.pago?"✅":"Pagar"}</button>}
                       {isAdmin && <button className="btn btn-blue" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => setModalHistorico(j)}>📋</button>}
@@ -1462,7 +1551,10 @@ ${jogosDoMes.length > 0 ? `
         {/* PRESENÇA */}
         {aba === "presenca" && (
           <div>
-            <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, marginBottom: 20 }}>📅 LISTA DE PRESENÇA</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>📅 LISTA DE PRESENÇA</h2>
+              {isAdmin && presencasData.length >= 2 && <button className="btn btn-blue" onClick={sortearTimes}>⚽ Sortear Times</button>}
+            </div>
 
             {/* Seletor de data + lista inline */}
             {isAdmin && (

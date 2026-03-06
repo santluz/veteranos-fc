@@ -1549,7 +1549,7 @@ ${jogosDoMes.length > 0 ? `
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900 }}>📅 LISTA DE PRESENÇA</h2>
-              {isAdmin && presencasData.length >= 2 && <button className="btn btn-blue" onClick={sortearTimes}>⚽ Sortear Times</button>}
+              <button className="btn btn-blue" onClick={() => { if(presencasData.length >= 2) { sortearTimes(); } else { alert("Marque ao menos 2 jogadores presentes para sortear!"); } }}>⚽ Sortear Times</button>
             </div>
 
             {/* Seletor de data + lista inline */}

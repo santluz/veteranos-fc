@@ -112,6 +112,7 @@ export default function App() {
   });
   const [dataPresenca, setDataPresenca] = useState(() => new Date().toISOString().split("T")[0]);
   const [salvando, setSalvando] = useState(false);
+  const isSavingRef = React.useRef(false);
   const [plano, setPlanoState] = useState("degustacao");
   const [dataExpiracao, setDataExpiracaoState] = useState(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -127,6 +128,8 @@ export default function App() {
     if (!grupoId) return;
     setCarregando(true);
     const unsub = onSnapshot(doc(db, "grupos", grupoId), (snap) => {
+      // Ignorar updates disparados pelo próprio app salvando
+      if (isSavingRef.current) return;
       if (snap.exists()) {
         const data = snap.data();
         // Grupos sem status são considerados ativos (grupos antigos)
@@ -199,9 +202,11 @@ export default function App() {
   // Salvar no Firebase
   const salvarFirebase = async (campo, valor) => {
     setSalvando(true);
+    isSavingRef.current = true;
     try {
       await setDoc(doc(db, "grupos", grupoId), { [campo]: valor }, { merge: true });
     } catch (e) { console.error(e); }
+    setTimeout(() => { isSavingRef.current = false; }, 1000);
     setSalvando(false);
   };
 

@@ -1,6 +1,5 @@
 /* eslint-disable no-restricted-globals */
 import React, { useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
@@ -1402,35 +1401,38 @@ ${jogosDoMes.length > 0 ? `
 
             {/* GRÁFICOS */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-              {/* Gráfico de área — Receita vs Despesa */}
+              {/* Gráfico de barras — Receita vs Despesa */}
               <div style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: 20, gridColumn: "1 / -1" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
                   <div>
                     <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>FINANCEIRO</p>
                     <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Receitas vs Despesas — Últimos 6 meses</p>
                   </div>
+                  <div style={{ display: "flex", gap: 16 }}>
+                    <span style={{ fontSize: 12, color: "#00d97e", fontWeight: 600 }}>▬ Receita</span>
+                    <span style={{ fontSize: 12, color: "#ff4757", fontWeight: 600 }}>▬ Despesa</span>
+                  </div>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={dadosGrafico} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradReceita" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00d97e" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#00d97e" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="gradDespesa" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff4757" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#ff4757" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2e50" />
-                    <XAxis dataKey="mes" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                    <Tooltip contentStyle={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 10, color: "#e8ecf3" }} formatter={(v) => [`R$ ${v.toFixed(2)}`]} />
-                    <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 13 }} />
-                    <Area type="monotone" dataKey="Receita" stroke="#00d97e" strokeWidth={2} fill="url(#gradReceita)" />
-                    <Area type="monotone" dataKey="Despesa" stroke="#ff4757" strokeWidth={2} fill="url(#gradDespesa)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {(() => {
+                  const maxVal = Math.max(...dadosGrafico.map(d => Math.max(d.Receita, d.Despesa)), 1);
+                  return (
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160, paddingBottom: 24, position: "relative" }}>
+                      {/* Grid lines */}
+                      {[0,25,50,75,100].map(pct => (
+                        <div key={pct} style={{ position: "absolute", left: 0, right: 0, bottom: `calc(${pct}% + 24px)`, borderTop: "1px dashed #1e2e50", zIndex: 0 }} />
+                      ))}
+                      {dadosGrafico.map((d, i) => (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, zIndex: 1 }}>
+                          <div style={{ width: "100%", display: "flex", gap: 2, alignItems: "flex-end", height: 136 }}>
+                            <div title={`Receita: R$ ${d.Receita.toFixed(2)}`} style={{ flex: 1, background: "linear-gradient(180deg, #00d97e, #00b865)", borderRadius: "4px 4px 0 0", height: `${(d.Receita/maxVal)*100}%`, minHeight: d.Receita > 0 ? 4 : 0, transition: "height 0.5s ease", cursor: "pointer" }} />
+                            <div title={`Despesa: R$ ${d.Despesa.toFixed(2)}`} style={{ flex: 1, background: "linear-gradient(180deg, #ff4757, #cc2030)", borderRadius: "4px 4px 0 0", height: `${(d.Despesa/maxVal)*100}%`, minHeight: d.Despesa > 0 ? 4 : 0, transition: "height 0.5s ease", cursor: "pointer" }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "capitalize" }}>{d.mes}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Gráfico de barras — Saldo mensal */}
@@ -1439,17 +1441,22 @@ ${jogosDoMes.length > 0 ? `
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>SALDO MENSAL</p>
                   <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Resultado por Mês</p>
                 </div>
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={dadosGrafico} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2e50" vertical={false} />
-                    <XAxis dataKey="mes" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
-                    <Tooltip contentStyle={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 10, color: "#e8ecf3" }} formatter={(v) => [`R$ ${v.toFixed(2)}`]} />
-                    <Bar dataKey="Saldo" radius={[6,6,0,0]} fill="#3b82f6"
-                      label={false}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                {(() => {
+                  const maxAbs = Math.max(...dadosGrafico.map(d => Math.abs(d.Saldo)), 1);
+                  return (
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120, paddingBottom: 24, position: "relative" }}>
+                      {[0,50,100].map(pct => (
+                        <div key={pct} style={{ position: "absolute", left: 0, right: 0, bottom: `calc(${pct}% + 24px)`, borderTop: "1px dashed #1e2e50", zIndex: 0 }} />
+                      ))}
+                      {dadosGrafico.map((d, i) => (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, zIndex: 1 }}>
+                          <div style={{ width: "80%", background: d.Saldo >= 0 ? "linear-gradient(180deg, #3b82f6, #1d4ed8)" : "linear-gradient(180deg, #ff4757, #cc2030)", borderRadius: "4px 4px 0 0", height: `${(Math.abs(d.Saldo)/maxAbs)*90}%`, minHeight: d.Saldo !== 0 ? 4 : 2, transition: "height 0.5s ease" }} />
+                          <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "capitalize" }}>{d.mes}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

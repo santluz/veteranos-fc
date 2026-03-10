@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-globals */
 import React, { useState, useEffect } from "react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
@@ -499,6 +500,26 @@ _Enviado pela gestão do grupo_ ⚽`;
     return `⚠️ *${nomeGrupo}* - ${nomeMes(mesFiltro)}\n\nPessoal, os jogadores abaixo ainda não pagaram a mensalidade de R$ ${configValores.mensalista}:\n\n${lista}\n\nPor favor, regularizem o pagamento. Obrigado! ⚽`;
   };
 
+  // Gerar dados para gráficos dos últimos 6 meses
+  const gerarDadosGrafico = () => {
+    const meses = [];
+    const hoje = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      const nomeMesAbrev = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".","");
+      const receita = jogadores.reduce((acc, j) => {
+        const p = j.pagamentos.find(p => p.mes === mesKey && p.pago);
+        return acc + (p ? p.valor : 0);
+      }, 0);
+      const despesa = despesas.filter(d => d.data && d.data.startsWith(mesKey)).reduce((acc, d) => acc + d.valor, 0);
+      meses.push({ mes: nomeMesAbrev, Receita: receita, Despesa: despesa, Saldo: receita - despesa });
+    }
+    return meses;
+  };
+
+  const dadosGrafico = gerarDadosGrafico();
+
   const gerarPDF = () => {
     const jogosDoMes = Object.keys(presencas || {}).filter(d => d.startsWith(mesFiltro)).sort();
     const html = `
@@ -654,10 +675,10 @@ ${jogosDoMes.length > 0 ? `
 
   const css = `
     html, body { overscroll-behavior-y: none; }
-    @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0a0f1e; } ::-webkit-scrollbar-thumb { background: #2a3a5c; border-radius: 3px; }
-    .btn { cursor: pointer; border: none; border-radius: 8px; font-family: 'Barlow', sans-serif; font-weight: 700; transition: all 0.2s; }
+    .btn { cursor: pointer; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 700; transition: all 0.2s; }
     .btn:hover { transform: translateY(-1px); }
     .btn-green { background: linear-gradient(135deg, #00d97e, #00b865); color: #fff; padding: 10px 20px; }
     .btn-red { background: linear-gradient(135deg, #ff4757, #cc2030); color: #fff; padding: 8px 14px; font-size: 13px; }
@@ -665,7 +686,7 @@ ${jogosDoMes.length > 0 ? `
     .btn-gray { background: #1e2a45; color: #94a3b8; padding: 8px 14px; font-size: 13px; }
     .btn-orange { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; padding: 8px 14px; font-size: 13px; }
     .card { background: linear-gradient(135deg, #111827, #1a2540); border: 1px solid #1e2e50; border-radius: 16px; padding: 24px; }
-    .input { background: #0d1525; border: 1px solid #1e2e50; border-radius: 8px; color: #e8ecf3; padding: 10px 14px; font-family: 'Barlow', sans-serif; font-size: 14px; width: 100%; outline: none; }
+    .input { background: #0d1525; border: 1px solid #1e2e50; border-radius: 8px; color: #e8ecf3; padding: 10px 14px; font-family: 'Inter', sans-serif; font-size: 14px; width: 100%; outline: none; }
     .input:focus { border-color: #3b82f6; }
     select.input option { background: #0d1525; }
     .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
@@ -676,7 +697,7 @@ ${jogosDoMes.length > 0 ? `
     .tag-purple { background: rgba(168,85,247,0.15); color: #a855f7; }
     .overlay { position: fixed; inset: 0; background: rgba(0,0,10,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); overflow-y: auto; padding: 20px; }
     .modal { background: #111827; border: 1px solid #1e2e50; border-radius: 20px; padding: 32px; width: 90%; max-width: 480px; }
-    .nav-tab { padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px; transition: all 0.2s; border: none; font-family: 'Barlow', sans-serif; }
+    .nav-tab { padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px; transition: all 0.2s; border: none; font-family: 'Inter', sans-serif; }
     .nav-tab.active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; }
     .nav-tab:not(.active) { background: transparent; color: #64748b; }
     .nav-tab:not(.active):hover { color: #94a3b8; background: #1a2540; }
@@ -699,15 +720,15 @@ ${jogosDoMes.length > 0 ? `
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Inter', sans-serif", color: "#e8ecf3" }}>
       <style>{css}</style>
 
       {/* LANDING PAGE */}
       {telaLanding && (
-        <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Barlow', sans-serif", color: "#e8ecf3", overflowX: "hidden" }}>
+        <div style={{ minHeight: "100vh", background: "#0a0f1e", fontFamily: "'Inter', sans-serif", color: "#e8ecf3", overflowX: "hidden" }}>
           <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
-            .land-btn { cursor: pointer; border: none; border-radius: 10px; font-family: 'Barlow', sans-serif; font-weight: 700; transition: all 0.2s; }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@700;900&display=swap');
+            .land-btn { cursor: pointer; border: none; border-radius: 10px; font-family: 'Inter', sans-serif; font-weight: 700; transition: all 0.2s; }
             .land-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
             .feature-card { background: linear-gradient(135deg, #111827, #1a2540); border: 1px solid #1e2e50; border-radius: 20px; padding: 28px; transition: all 0.3s; }
             .feature-card:hover { border-color: #3b82f6; transform: translateY(-4px); }
@@ -874,7 +895,7 @@ ${jogosDoMes.length > 0 ? `
         <div className="overlay">
           <div className="modal" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>⚽</div>
-            <button onClick={() => { setTelaLogin(false); setTelaLanding(true); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Barlow', sans-serif", fontWeight: 600 }}>← Voltar</button>
+            <button onClick={() => { setTelaLogin(false); setTelaLanding(true); }} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>← Voltar</button>
             <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, marginBottom: 4, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GESTÃO DE GRUPOS</h1>
             <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Futebol Veterano</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
@@ -883,10 +904,10 @@ ${jogosDoMes.length > 0 ? `
                 <input className="input" placeholder="Ex: veteranos_fc, masters_fc..." value={grupoIdInput} onChange={e => { setGrupoIdInput(e.target.value); setErroLoginGrupo(""); }} onKeyDown={e => e.key === "Enter" && entrarNoGrupo()} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setTipoAcesso("visitante")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "visitante" ? "#3b82f6" : "#1e2e50"}`, background: tipoAcesso === "visitante" ? "rgba(59,130,246,0.1)" : "#0d1525", color: tipoAcesso === "visitante" ? "#3b82f6" : "#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => setTipoAcesso("visitante")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "visitante" ? "#3b82f6" : "#1e2e50"}`, background: tipoAcesso === "visitante" ? "rgba(59,130,246,0.1)" : "#0d1525", color: tipoAcesso === "visitante" ? "#3b82f6" : "#64748b", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 13 }}>
                   👁 Visitante
                 </button>
-                <button onClick={() => setTipoAcesso("admin")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "admin" ? "#00d97e" : "#1e2e50"}`, background: tipoAcesso === "admin" ? "rgba(0,217,126,0.1)" : "#0d1525", color: tipoAcesso === "admin" ? "#00d97e" : "#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 13 }}>
+                <button onClick={() => setTipoAcesso("admin")} style={{ flex: 1, padding: "10px", borderRadius: 8, border: `2px solid ${tipoAcesso === "admin" ? "#00d97e" : "#1e2e50"}`, background: tipoAcesso === "admin" ? "rgba(0,217,126,0.1)" : "#0d1525", color: tipoAcesso === "admin" ? "#00d97e" : "#64748b", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 13 }}>
                   👑 Admin
                 </button>
               </div>
@@ -1140,7 +1161,7 @@ ${jogosDoMes.length > 0 ? `
                 <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>Nº DE TIMES</p>
                 <div style={{ display: "flex", gap: 6 }}>
                   {[2,3,4].map(n => (
-                    <button key={n} onClick={() => { setNumTimes(n); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${numTimes===n?"#3b82f6":"#1e2e50"}`, background: numTimes===n?"rgba(59,130,246,0.15)":"#0d1525", color: numTimes===n?"#3b82f6":"#64748b", cursor: "pointer", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: 14 }}>{n}</button>
+                    <button key={n} onClick={() => { setNumTimes(n); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${numTimes===n?"#3b82f6":"#1e2e50"}`, background: numTimes===n?"rgba(59,130,246,0.15)":"#0d1525", color: numTimes===n?"#3b82f6":"#64748b", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: 14 }}>{n}</button>
                   ))}
                 </div>
               </div>
@@ -1362,24 +1383,73 @@ ${jogosDoMes.length > 0 ? `
                 ))}
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
-              <div className="stat-card" style={{ borderLeftColor: "#00d97e" }}>
-                <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>RECEITA DO MÊS</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#00d97e" }}>R$ {receitaMes.toFixed(2)}</p>
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min((receitaMes/((totalMensalistas*valorMensalista+totalAvulsos*valorAvulso)||1))*100,100)}%`, background: "#00d97e" }} /></div>
+            {/* CARDS DE RESUMO */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
+              {[
+                { label: "RECEITA DO MÊS", valor: `R$ ${receitaMes.toFixed(2)}`, color: "#00d97e", icon: "💚", sub: `${Math.min((receitaMes/((totalMensalistas*valorMensalista+totalAvulsos*valorAvulso)||1))*100,100).toFixed(0)}% da meta` },
+                { label: "DESPESAS DO MÊS", valor: `R$ ${despesasMes.toFixed(2)}`, color: "#ff4757", icon: "🔴", sub: `${despesas.filter(d=>d.data&&d.data.startsWith(mesFiltro)).length} lançamentos` },
+                { label: "SALDO", valor: `R$ ${saldo.toFixed(2)}`, color: saldo>=0?"#3b82f6":"#ff4757", icon: saldo>=0?"📈":"📉", sub: saldo>=0?"Positivo este mês":"Atenção ao saldo" },
+                { label: "JOGADORES ATIVOS", valor: jogadores.filter(j=>j.status==="ativo").length, color: "#ffba00", icon: "⚽", sub: `${totalMensalistas} mensalistas · ${totalAvulsos} avulsos` },
+              ].map(c => (
+                <div key={c.label} style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: "20px 20px 16px", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: c.color, borderRadius: "16px 0 0 16px" }} />
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1, marginBottom: 8 }}>{c.label}</p>
+                  <p style={{ fontSize: 28, fontWeight: 800, color: c.color, marginBottom: 4 }}>{c.valor}</p>
+                  <p style={{ fontSize: 12, color: "#475569" }}>{c.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* GRÁFICOS */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+              {/* Gráfico de área — Receita vs Despesa */}
+              <div style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: 20, gridColumn: "1 / -1" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>FINANCEIRO</p>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Receitas vs Despesas — Últimos 6 meses</p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={dadosGrafico} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradReceita" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00d97e" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#00d97e" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="gradDespesa" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ff4757" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#ff4757" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2e50" />
+                    <XAxis dataKey="mes" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
+                    <Tooltip contentStyle={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 10, color: "#e8ecf3" }} formatter={(v) => [`R$ ${v.toFixed(2)}`]} />
+                    <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 13 }} />
+                    <Area type="monotone" dataKey="Receita" stroke="#00d97e" strokeWidth={2} fill="url(#gradReceita)" />
+                    <Area type="monotone" dataKey="Despesa" stroke="#ff4757" strokeWidth={2} fill="url(#gradDespesa)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-              <div className="stat-card" style={{ borderLeftColor: "#ff4757" }}>
-                <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>DESPESAS DO MÊS</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#ff4757" }}>R$ {despesasMes.toFixed(2)}</p>
-              </div>
-              <div className="stat-card" style={{ borderLeftColor: saldo>=0?"#3b82f6":"#ff4757" }}>
-                <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>SALDO</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: saldo>=0?"#3b82f6":"#ff4757" }}>R$ {saldo.toFixed(2)}</p>
-              </div>
-              <div className="stat-card" style={{ borderLeftColor: "#ffba00" }}>
-                <p style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>JOGADORES ATIVOS</p>
-                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 34, fontWeight: 900, color: "#ffba00" }}>{jogadores.filter(j=>j.status==="ativo").length}</p>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{totalMensalistas} mensalistas · {totalAvulsos} avulsos</p>
+
+              {/* Gráfico de barras — Saldo mensal */}
+              <div style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: 20, gridColumn: "1 / -1" }}>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>SALDO MENSAL</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Resultado por Mês</p>
+                </div>
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={dadosGrafico} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2e50" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v}`} />
+                    <Tooltip contentStyle={{ background: "#0d1525", border: "1px solid #1e2e50", borderRadius: 10, color: "#e8ecf3" }} formatter={(v) => [`R$ ${v.toFixed(2)}`]} />
+                    <Bar dataKey="Saldo" radius={[6,6,0,0]} fill="#3b82f6"
+                      label={false}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 

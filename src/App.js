@@ -674,6 +674,9 @@ ${jogosDoMes.length > 0 ? `
 
   const css = `
     html, body { overscroll-behavior-y: none; }
+    * { -webkit-spellcheck: false; }
+    h1, h2, h3, p, span { text-decoration: none !important; }
+    input, textarea { spellcheck: false; }
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0a0f1e; } ::-webkit-scrollbar-thumb { background: #2a3a5c; border-radius: 3px; }
@@ -1300,7 +1303,7 @@ ${jogosDoMes.length > 0 ? `
             : <span onClick={() => isAdmin && setModalLogo(true)} style={{ fontSize: 32, cursor: isAdmin ? "pointer" : "default" }}>⚽</span>
           }
           <div>
-            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, background: "linear-gradient(135deg, #3b82f6, #00d97e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{nomeGrupo}</h1>
+            <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, letterSpacing: 1, color: "#3b82f6" }}>{nomeGrupo}</h1>
             <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>SISTEMA DE GESTÃO {salvando && "· salvando..."}</p>
           </div>
         </div>
@@ -1405,8 +1408,8 @@ ${jogosDoMes.length > 0 ? `
               <div style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: 20, gridColumn: "1 / -1" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>FINANCEIRO</p>
-                    <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Receitas vs Despesas — Últimos 6 meses</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1, textDecoration: "none" }}>FINANCEIRO</p>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3", textDecoration: "none" }}>Receitas vs Despesas — Últimos 6 meses</p>
                   </div>
                   <div style={{ display: "flex", gap: 16 }}>
                     <span style={{ fontSize: 12, color: "#00d97e", fontWeight: 600 }}>▬ Receita</span>
@@ -1438,8 +1441,8 @@ ${jogosDoMes.length > 0 ? `
               {/* Gráfico de barras — Saldo mensal */}
               <div style={{ background: "linear-gradient(135deg, #111827, #1a2540)", border: "1px solid #1e2e50", borderRadius: 16, padding: 20, gridColumn: "1 / -1" }}>
                 <div style={{ marginBottom: 16 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1 }}>SALDO MENSAL</p>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3" }}>Resultado por Mês</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 1, textDecoration: "none" }}>SALDO MENSAL</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "#e8ecf3", textDecoration: "none" }}>Resultado por Mês</p>
                 </div>
                 {(() => {
                   const maxAbs = Math.max(...dadosGrafico.map(d => Math.abs(d.Saldo)), 1);
